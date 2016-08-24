@@ -12,15 +12,22 @@ To create a SCseq object we need an input data frame of transcript counts, colum
   + sc <- SCseq(inputdata)
 
 * **filterdata**.
-Filters data. Input parameters and default values are: mintotal=3000 (discards cells with less than mintotal reads), minexpr=5, minnumber=1 (discards genes with less than minexpr transcripts in at least minnumber cells), maxexpr=Inf (discards genes with more than maxexpr transcripts in at least one cell), downsample=TRUE (when downsample is set to TRUE data is downsampled to mindownsample transcripts per cell, otherwise it is only median normalized), dsn=1 (number of downsamplings, ), rseed=17000 (used in case of downsample). <br />
+Filters data. Input parameters and default values are: mintotal=1000 (discards cells with less than mintotal reads), minexpr=5, minnumber=1 (discards genes with less than minexpr transcripts in at least minnumber cells), maxexpr=Inf (discards genes with more than maxexpr transcripts in at least one cell), downsample=FALSE (logical; when TRUE data is downsampled to mintotal transcripts per cell, otherwise it is median normalized), dsn=1 (number of downsamplings; output is an average over dsn downsamplings), rseed=17000 (seed used for downsampling). <br />
 Input parameters are stored in slot sc@filterparameters. 
 The script first normalizes transcripts across cells with more than mintotal transcripts and stores the result in slot sc@ndata.
 Then removes genes according to given filters and stores resulting data to sc@fdata. 
 
-  + sc <- filterdata(sc, mintotal=minreadspercell, minexpr=5, minnumber=1, maxexpr=maxexprpergene, downsample=dodownsample, dsn=1, rseed=17000)
+  + sc <- filterdata(sc, mintotal=1000, minexpr=5, minnumber=1, maxexpr=Inf, downsample=FALSE, dsn=1, rseed=17000)
+  + sc <- filterdata(sc) -- runs function with default values.
 
-* **clustexp**. Clusters data. 
-  + sc <- clustexp(sc, clustnr=30, bootnr=50, metric="pearson", do.gap=FALSE, sat=TRUE, SE.method="Tibs2001SEmax", SE.factor=0.25, B.gap=50, cln=0, rseed=17000, FUNcluster="kmedoids")
+* **clustexp**. Clusters data using kmedoids. Input parameters and default values are: 
+clustnr=30, bootnr=50, metric="pearson",do.gap=TRUE,sat=FALSE,SE.method="Tibs2001SEmax",SE.factor=.25,B.gap=50,cln=0,rseed=17000,FUNcluster="kmeans", version = 2 () <br />
+How does this work? <br/>
+Inut parameters are stored in slot sc@clusterpar.
+
+
+  + sc <- clustexp(sc, clustnr=30, bootnr=50, metric="pearson", do.gap=FALSE, sat=TRUE, SE.method="Tibs2001SEmax", SE.factor=0.25, B.gap=50, cln=0, rseed=17000, FUNcluster="kmedoids", version = 2)
+  + sc <- clustexp(sc) -- runs function with default values
 
 
 ## RaceID2 functions
