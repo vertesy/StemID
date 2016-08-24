@@ -19,7 +19,8 @@ Then removes genes according to given filters and stores resulting data to sc@fd
 
   + sc <- filterdata(sc, mintotal=minreadspercell, minexpr=5, minnumber=1, maxexpr=maxexprpergene, downsample=dodownsample, dsn=1, rseed=17000)
 
-* **clustexp**. 
+* **clustexp**. Clusters data. 
+  + sc <- clustexp(sc, clustnr=30, bootnr=50, metric="pearson", do.gap=FALSE, sat=TRUE, SE.method="Tibs2001SEmax", SE.factor=0.25, B.gap=50, cln=0, rseed=17000, FUNcluster="kmedoids")
 
 
 ## RaceID2 functions
