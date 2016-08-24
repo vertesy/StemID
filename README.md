@@ -21,8 +21,8 @@ Then removes genes according to given filters and stores resulting data to sc@fd
   + sc <- filterdata(sc) -- runs function with default values.
 
 * **clustexp**. Clusters data using kmedoids. Input parameters and default values are: 
-clustnr=30, bootnr=50, metric="pearson",do.gap=TRUE,sat=FALSE,SE.method="Tibs2001SEmax",SE.factor=.25,B.gap=50,cln=0,rseed=17000,FUNcluster="kmeans", version = 2 () <br />
-How does this work? <br/>
+clustnr=20 (), bootnr=50 (), metric="pearson" (), do.gap=TRUE (), sat=FALSE (incorporated in RaceID2, ), SE.method="Tibs2001SEmax" (), SE.factor=.25 (), B.gap=50 (), cln=0 (), rseed=17000 (), FUNcluster="kmeans" (incorporated in RaceID2, ), version = 2 (version of RaceID) <br />
+Clusters sc@fdata <br/>
 Inut parameters are stored in slot sc@clusterpar.
 
 
