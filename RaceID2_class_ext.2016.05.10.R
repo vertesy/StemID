@@ -65,7 +65,7 @@ setMethod("initialize",
           }
           )
 
-setGeneric("filterdata", function(object, mintotal=3000, minexpr=5, minnumber=1, maxexpr=500, downsample=FALSE, dsn=1, rseed=17000) standardGeneric("filterdata"))
+setGeneric("filterdata", function(object, mintotal=1000, minexpr=5, minnumber=1, maxexpr=Inf, downsample=FALSE, dsn=1, rseed=17000) standardGeneric("filterdata"))
 
 setMethod("filterdata",
           signature = "SCseq",
@@ -264,30 +264,6 @@ binompval <- function(p,N,n){
   return(pval)
 }
 
-setGeneric("clustexp", function(object,clustnr=20,bootnr=50,metric="pearson",do.gap=TRUE,SE.method="Tibs2001SEmax",SE.factor=.25,B.gap=50,cln=0,rseed=17000) standardGeneric("clustexp"))
-
-setMethod("clustexp",
-          signature = "SCseq",
-          definition = function(object,clustnr,bootnr,metric,do.gap,SE.method,SE.factor,B.gap,cln,rseed) {
-            if ( ! is.numeric(clustnr) ) stop("clustnr has to be a positive integer") else if ( round(clustnr) != clustnr | clustnr <= 0 ) stop("clustnr has to be a positive integer")
-            if ( ! is.numeric(bootnr) ) stop("bootnr has to be a positive integer") else if ( round(bootnr) != bootnr | bootnr <= 0 ) stop("bootnr has to be a positive integer")
-            if ( ! ( metric %in% c( "spearman","pearson","kendall","euclidean","maximum","manhattan","canberra","binary","minkowski") ) ) stop("metric has to be one of the following: spearman, pearson, kendall, euclidean, maximum, manhattan, canberra, binary, minkowski")
-            if ( ! ( SE.method %in% c( "firstSEmax","Tibs2001SEmax","globalSEmax","firstmax","globalmax") ) ) stop("SE.method has to be one of the following: firstSEmax, Tibs2001SEmax, globalSEmax, firstmax, globalmax")
-            if ( ! is.numeric(SE.factor) ) stop("SE.factor has to be a non-negative integer") else if  ( SE.factor < 0 )  stop("SE.factor has to be a non-negative integer")
-            if ( ! ( is.numeric(do.gap) | is.logical(do.gap) ) ) stop( "do.gap has to be logical (TRUE/FALSE)" )
-            if ( ! is.numeric(B.gap) ) stop("B.gap has to be a positive integer") else if ( round(B.gap) != B.gap | B.gap <= 0 ) stop("B.gap has to be a positive integer")
-            if ( ! is.numeric(cln) ) stop("cln has to be a non-negative integer") else if ( round(cln) != cln | cln < 0 ) stop("cln has to be a non-negative integer")
-            if ( ! is.numeric(rseed) ) stop("rseed has to be numeric")
-            if ( !do.gap & cln == 0 ) stop("cln has to be a positive integer or do.gap has to be TRUE")
-            object@clusterpar <- list(clustnr=clustnr,bootnr=bootnr,metric=metric,do.gap=do.gap,SE.method=SE.method,SE.factor=SE.factor,B.gap=B.gap,cln=cln,rseed=rseed)
-            y <- clustfun(object@fdata,clustnr,bootnr,metric,do.gap,SE.method,SE.factor,B.gap,cln,rseed)
-            object@cluster    <- list(kpart=y$clb$result$partition, jaccard=y$clb$bootmean, gap=y$gpr)
-            object@distances <- as.matrix( y$di )
-            set.seed(111111)
-            object@fcol <- sample(rainbow(max(y$clb$result$partition)))
-            return(object)
-          }
-          )
 
 setGeneric("findoutliers", function(object,outminc=5,outlg=2,probthr=1e-3,thr=2**-(1:40),outdistquant=.75) standardGeneric("findoutliers"))
 
@@ -1165,11 +1141,12 @@ clustfun2 <- function(x,clustnr=20,bootnr=50,metric="pearson",do.gap=TRUE,sat=FA
 }
 
 
-setGeneric("clustexp2", function(object,clustnr=20,bootnr=50,metric="pearson",do.gap=TRUE,sat=FALSE,SE.method="Tibs2001SEmax",SE.factor=.25,B.gap=50,cln=0,rseed=17000,FUNcluster="kmeans") standardGeneric("clustexp2"))
 
-setMethod("clustexp2",
+setGeneric("clustexp", function(object, clustnr=20, bootnr=50, metric="pearson", do.gap=TRUE, sat=FALSE, SE.method="Tibs2001SEmax", SE.factor=.25, B.gap=50, cln=0, rseed=17000, FUNcluster="kmeans", version=2) standardGeneric("clustexp"))
+
+setMethod("clustexp",
           signature = "SCseq",
-          definition = function(object,clustnr,bootnr,metric,do.gap,sat,SE.method,SE.factor,B.gap,cln,rseed,FUNcluster) {
+          definition = function(object,clustnr,bootnr,metric,do.gap,sat,SE.method,SE.factor,B.gap,cln,rseed,FUNcluster, version) {
             if ( ! is.numeric(clustnr) ) stop("clustnr has to be a positive integer") else if ( round(clustnr) != clustnr | clustnr <= 0 ) stop("clustnr has to be a positive integer")
             if ( ! is.numeric(bootnr) ) stop("bootnr has to be a positive integer") else if ( round(bootnr) != bootnr | bootnr <= 0 ) stop("bootnr has to be a positive integer")
             if ( ! ( metric %in% c( "spearman","pearson","kendall","euclidean","maximum","manhattan","canberra","binary","minkowski") ) ) stop("metric has to be one of the following: spearman, pearson, kendall, euclidean, maximum, manhattan, canberra, binary, minkowski")
@@ -1182,15 +1159,23 @@ setMethod("clustexp2",
             if ( ! is.numeric(rseed) ) stop("rseed has to be numeric")
             if ( !do.gap & !sat & cln == 0 ) stop("cln has to be a positive integer or either do.gap or sat has to be TRUE")
             if ( ! ( FUNcluster %in% c("kmeans","hclust","kmedoids") ) ) stop("FUNcluster has to be one of the following: kmeans, hclust,kmedoids")
-            object@clusterpar <- list(clustnr=clustnr,bootnr=bootnr,metric=metric,do.gap=do.gap,sat=sat,SE.method=SE.method,SE.factor=SE.factor,B.gap=B.gap,cln=cln,rseed=rseed,FUNcluster=FUNcluster)
-            y <- clustfun2(object@fdata,clustnr,bootnr,metric,do.gap,sat,SE.method,SE.factor,B.gap,cln,rseed,FUNcluster)
-            object@cluster   <- list(kpart=y$clb$result$partition, jaccard=y$clb$bootmean, gap=y$gpr, clb=y$clb)
+            if ( ! version %in% c(1, 2) ) stop ("version has to be 1 or 2")
+            object@clusterpar <- list(clustnr=clustnr,bootnr=bootnr,metric=metric,do.gap=do.gap,sat=sat,SE.method=SE.method,SE.factor=SE.factor,B.gap=B.gap,cln=cln,rseed=rseed,FUNcluster=FUNcluster, version=version)
+            if (version == 1) {
+                y <- clustfun(object@fdata,clustnr,bootnr,metric,do.gap,SE.method,SE.factor,B.gap,cln,rseed)
+                clb = "None"
+            } else if (version == 2) {
+                y <- clustfun2(object@fdata,clustnr,bootnr,metric,do.gap,sat,SE.method,SE.factor,B.gap,cln,rseed,FUNcluster)
+                clb <- y$clb
+            }
+            object@cluster   <- list(kpart=y$clb$result$partition, jaccard=y$clb$bootmean, gap=y$gpr, clb=clb)
             object@distances <- as.matrix( y$di )
             set.seed(111111)
             object@fcol <- sample(rainbow(max(y$clb$result$partition)))
             return(object)
           }
           )
+
 
 plotheatmap <- function(x,xpart=NULL,xcol=NULL,xlab=TRUE,ypart=NULL,ycol=NULL,ylab=TRUE,xgrid=FALSE,ygrid=FALSE){
 
