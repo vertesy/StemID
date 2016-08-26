@@ -19,11 +19,12 @@ Input parameters and default values are:
   3. _maxexpr=Inf_ (discards genes with more than maxexpr transcripts in at least one cell)
   4. _downsample=FALSE_ (logical; when TRUE data is downsampled to mintotal transcripts per cell, otherwise it is median normalized)
   5. _dsn=1_ (number of downsamplings; output is an average over dsn downsamplings)
-  6. _rseed=17000_ (seed used for downsampling). <br />
+  6. _rseed=17000_ (seed used for downsampling)
+  7. _dsversion="JCB"_ (downsampling function version) <br />
   
   Input parameters are stored in slot sc@filterparameters. 
-  The script first normalizes transcripts across cells with more than mintotal transcripts and stores the result in slot sc@ndata.
-  Then removes genes according to given filters and stores resulting data to sc@fdata. 
+  The method first median normalizes or downsamples (dependeing of _downsample_) transcripts across cells with more than _mintotal_ transcripts and stores the result in slot sc@ndata.
+  Then removes genes according to _minexpr_, _minnumber_ and _maxexpr_ and stores resulting data.frame into sc@fdata. 
 
   + sc <- filterdata(sc, mintotal=1000, minexpr=5, minnumber=1, maxexpr=Inf, downsample=FALSE, dsn=1, rseed=17000)
   + sc <- filterdata(sc) -- runs function with default values.
@@ -52,6 +53,9 @@ Input parameters and default values are:
 
 
 ## RaceID2 functions
+* **downsample**. Downsamples inputdata. <br />
+Transcript data is converted to integer data and random sampling is done _dsn_ times and averaged. A peudocount equal to 0.1 is added to the resulting data.frame. 
+There are two versions (DG and JCB, written by Dominic Gr"un and Jean-Charles Boisset respectively). By default the functions uses JCB version. To choose another one use _dsversion_ in method _filterdata_.
 
 The following files are provided:
 
