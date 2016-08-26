@@ -26,7 +26,7 @@ Input parameters and default values are:
   The method first median normalizes or downsamples (dependeing of _downsample_) transcripts across cells with more than _mintotal_ transcripts and stores the result in slot sc@ndata.
   Then removes genes according to _minexpr_, _minnumber_ and _maxexpr_ and stores resulting data.frame into sc@fdata. 
 
-  + sc <- filterdata(sc, mintotal=1000, minexpr=5, minnumber=1, maxexpr=Inf, downsample=FALSE, dsn=1, rseed=17000)
+  + sc <- filterdata(sc, mintotal=1000, minexpr=5, minnumber=1, maxexpr=Inf, downsample=FALSE, dsn=1, rseed=17000, dsversion = 'JCB')
   + sc <- filterdata(sc) -- runs function with default values.
 
 * **clustexp**. Clusters data using kmedoids. <br/>
