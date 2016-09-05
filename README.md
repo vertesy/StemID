@@ -48,14 +48,19 @@ Input parameters and default values are:
   Inut parameters are stored in slot sc@clusterpar. <br />
   Run as:
 
-  + sc <- clustexp(sc, clustnr=30, bootnr=50, metric="pearson", do.gap=FALSE, sat=TRUE, SE.method="Tibs2001SEmax", SE.factor=0.25, B.gap=50, cln=0, rseed=17000, FUNcluster="kmedoids", version = 2)
+  + sc <- clustexp(sc, clustnr=20, bootnr=50, metric="pearson", do.gap=FALSE, sat=TRUE, SE.method="Tibs2001SEmax", SE.factor=0.25, B.gap=50, cln=0, rseed=17000, FUNcluster="kmedoids", version = 2)
   + sc <- clustexp(sc) -- runs function with default values
 
+ Runs **clustfun** or **clustfun2**. Results are stored at sc@cluster, sc@distances and sc@fcol.
 
 ## RaceID2 functions
 * **downsample**. Downsamples inputdata. <br />
 Transcript data is converted to integer data and random sampling is done _dsn_ times and averaged. A peudocount equal to 0.1 is added to the resulting data.frame. 
 There are two versions (DG and JCB, written by Dominic Gr"un and Jean-Charles Boisset respectively). By default the functions uses JCB version. To choose another one use _dsversion_ in method _filterdata_.
+
+* **clustfun**. Clusters sc@fdata. Version 1, from RaceID1. 
+* **clustfun2**. Clusters sc@fdata. Version 2, from RaceID2. <br />
+
 
 The following files are provided:
 
