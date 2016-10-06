@@ -6,7 +6,7 @@ StemID is an algorithm for the derivation of cell lineage trees based on RaceID2
 
 RaceID2 and StemID are written in the R computing language.
 
-## RaceID2 methods
+## Methods
 * **initialize**. Creates a SCseq object. <br />
  As input we need data frame of transcript counts, columns are cells, rows are genes. Run as:
   + sc <- SCseq(inputdata)
@@ -31,35 +31,41 @@ Input parameters and default values are:
 
 * **clustexp**. Clusters data using kmedoids. <br/>
   Input parameters and default values are: 
-  1. _clustnr=20_ ()
-  2. _bootnr=50_ ()
-  3. _metric="pearson"_ ()
-  4. _do.gap=TRUE_ ()
-  5. _sat=FALSE_ (incorporated in RaceID2, )
+  1. _clustnr=20_ (Number of clusters. Must be greater than 1.)
+  2. _bootnr=50_ (Maximum number of clusters for the computation of the gap statistics or the derivation of the cluster number by saturation criterion.)
+  3. _metric="pearson"_ (Metric to compute distance between cells. Options are:  "spearman","pearson","kendall","euclidean","maximum","manhattan","canberra","binary","minkowski". Check function dist.gen for more information. Distances are stored in sc@distances.)
+  4. _do.gap=TRUE_ (If set to TRUE, the number of clusters is determined using gap statistics. Default is TRUE.)
+  5. _sat=FALSE_ (incorporated in RaceID2, computes the number of clusters using saturation criterion.)
   6. _SE.method="Tibs2001SEmax"_ ()
   7. _SE.factor=.25_ ()
-  8. _B.gap=50_ ()
-  9. _cln=0_ ()
-  10. _rseed=17000_ ()
-  11. _FUNcluster="kmeans"_ (incorporated in RaceID2, )
-  12. _version = 2_ (version of RaceID) <br />
+  8. _B.gap=50_ (Number of bootstrap runs for the gap statistics.)
+  9. _cln=0_ (Number of clusters for clustering. In case it is 0, will be determined by either gap statistics of saturation criterion.)
+  10. _rseed=17000_ (Seed for random number generator used in case of gap statistics and for posterior clustering.)
+  11. _FUNcluster="kmeans"_ (incorporated in RaceID2, this can be kmeans, hclust or kmedoids. ) <br />
   
-  Clusters sc@fdata <br/>
-  Inut parameters are stored in slot sc@clusterpar. <br />
+ Input parameters are stored in slot sc@clusterpar. Default is taken when no specified. <br/>
+ Data in sc@fdata in clustered using clustfun functions. Results are stored in sc@cluster, sc@distances and sc@fcol. Go to _Functions_ section to learn more. <br/>
   Run as:
 
-  + sc <- clustexp(sc, clustnr=20, bootnr=50, metric="pearson", do.gap=FALSE, sat=TRUE, SE.method="Tibs2001SEmax", SE.factor=0.25, B.gap=50, cln=0, rseed=17000, FUNcluster="kmedoids", version = 2)
+  + sc <- clustexp(sc, clustnr=20, bootnr=50, metric="pearson", do.gap=FALSE, sat=TRUE, SE.method="Tibs2001SEmax", SE.factor=0.25, B.gap=50, cln=0, rseed=17000, FUNcluster="kmedoids")
   + sc <- clustexp(sc) -- runs function with default values
 
- Runs **clustfun** or **clustfun2**. Results are stored at sc@cluster, sc@distances and sc@fcol.
-
-## RaceID2 functions
+## Functions
 * **downsample**. Downsamples inputdata. <br />
 Transcript data is converted to integer data and random sampling is done _dsn_ times and averaged. A peudocount equal to 0.1 is added to the resulting data.frame. 
 There are two versions (DG and JCB, written by Dominic Gr"un and Jean-Charles Boisset respectively). By default the functions uses JCB version. To choose another one use _dsversion_ in method _filterdata_.
 
-* **clustfun**. Clusters sc@fdata. Version 1, from RaceID1. 
-* **clustfun2**. Clusters sc@fdata. Version 2, from RaceID2. <br />
+* **clustfun**. Clusters sc@fdata. <br/>
+Version 2, from RaceID2. Computes distance between cells (using dist.gen function) using specified metric. Determines cluster number if required using gap statistics or saturation criterion. Then clusters data (using clusGapExt function) using the specified method -kmedoids, kmeans or hclust-. <br />
+
+* **dist.gen**. Distance between cells. <br/>
+Computes and returns the distance matrix computed by using the specified distance (mmetric) measure to compute the distances between the cells. In case of metric "spearman", "pearson", or "kendall", the function takes 1 - correlation as a distance, and takes the direct measurement of the distance for metric "euclidean", "maximum", "manhattan", "canberra", "binary" or "minkowski".
+
+* **clusGapExt**. Clustering.
+
+* **clusterboot kmeansCBI**. kmeans clustering. fpc package.
+* **clusterboot with pamkCBI**. kmedoids clustering. fpc package.
+* **clusterboot with hclusterCBI**. hclust clustering. fpc package.
 
 
 The following files are provided:
