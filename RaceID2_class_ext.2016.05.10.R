@@ -142,65 +142,169 @@ downsample <- function(x, n, dsn, dsversion){
 
 #### Clustering methods and functions ####
 
+setGeneric("clustexp", function(object, clustnr=20, bootnr=50, metric="pearson", do.gap=TRUE, sat=FALSE, SE.method="Tibs2001SEmax", SE.factor=.25, B.gap=50, cln=0, rseed=17000, FUNcluster="kmeans") standardGeneric("clustexp"))
 
+setMethod("clustexp",
+signature = "SCseq",
+definition = function(object,clustnr,bootnr,metric,do.gap,sat,SE.method,SE.factor,B.gap,cln,rseed,FUNcluster) {
+    if ( ! is.numeric(clustnr) ) stop("clustnr has to be a positive integer") else if ( round(clustnr) != clustnr | clustnr <= 0 ) stop("clustnr has to be a positive integer")
+    if ( ! is.numeric(bootnr) ) stop("bootnr has to be a positive integer") else if ( round(bootnr) != bootnr | bootnr <= 0 ) stop("bootnr has to be a positive integer")
+    if ( ! ( metric %in% c( "spearman","pearson","kendall","euclidean","maximum","manhattan","canberra","binary","minkowski") ) ) stop("metric has to be one of the following: spearman, pearson, kendall, euclidean, maximum, manhattan, canberra, binary, minkowski")
+    if ( ! ( SE.method %in% c( "firstSEmax","Tibs2001SEmax","globalSEmax","firstmax","globalmax") ) ) stop("SE.method has to be one of the following: firstSEmax, Tibs2001SEmax, globalSEmax, firstmax, globalmax")
+    if ( ! is.numeric(SE.factor) ) stop("SE.factor has to be a non-negative integer") else if  ( SE.factor < 0 )  stop("SE.factor has to be a non-negative integer")
+    if ( ! ( is.numeric(do.gap) | is.logical(do.gap) ) ) stop( "do.gap has to be logical (TRUE/FALSE)" )
+    if ( ! ( is.numeric(sat) | is.logical(sat) ) ) stop( "sat has to be logical (TRUE/FALSE)" )
+    if ( ! is.numeric(B.gap) ) stop("B.gap has to be a positive integer") else if ( round(B.gap) != B.gap | B.gap <= 0 ) stop("B.gap has to be a positive integer")
+    if ( ! is.numeric(cln) ) stop("cln has to be a non-negative integer") else if ( round(cln) != cln | cln < 0 ) stop("cln has to be a non-negative integer")
+    if ( ! is.numeric(rseed) ) stop("rseed has to be numeric")
+    if ( !do.gap & !sat & cln == 0 ) stop("cln has to be a positive integer or either do.gap or sat has to be TRUE")
+    if ( ! ( FUNcluster %in% c("kmeans","hclust","kmedoids") ) ) stop("FUNcluster has to be one of the following: kmeans, hclust,kmedoids")
+    
+    object@clusterpar <- list(clustnr=clustnr,bootnr=bootnr,metric=metric,do.gap=do.gap,sat=sat,SE.method=SE.method,SE.factor=SE.factor,B.gap=B.gap,cln=cln,rseed=rseed,FUNcluster=FUNcluster)
+    if ( clustnr < 2) stop("Choose clustnr > 1")
 
-#### tSNEmap methods and functions ####
+    y <- clustfun(object@fdata,clustnr,bootnr,metric,do.gap,sat,SE.method,SE.factor,B.gap,cln,rseed,FUNcluster)
+    
+    object@cluster   <- list(kpart=y$clb$result$partition, jaccard=y$clb$bootmean, gap=y$gpr, clb=y$clb)
+    object@distances <- as.matrix( y$di )
+    set.seed(111111)
+    object@fcol <- sample(rainbow(max(y$clb$result$partition)))
+    return(object)
+}
+)
 
-#### Others ####
-
-dist.gen <- function(x,method="euclidean", ...) if ( method %in% c("spearman","pearson","kendall") ) as.dist( 1 - cor(t(x),method=method,...) ) else dist(x,method=method,...)
-
-dist.gen.pairs <- function(x,y,...) dist.gen(t(cbind(x,y)),...)
-
-clustfun <- function(x,clustnr=20,bootnr=50,metric="pearson",do.gap=TRUE,SE.method="Tibs2001SEmax",SE.factor=.25,B.gap=50,cln=0,rseed=17000)
+clustfun <- function(x,clustnr=20,bootnr=50,metric="pearson",do.gap=TRUE,sat=FALSE,SE.method="Tibs2001SEmax",SE.factor=.25,B.gap=50,cln=0,rseed=17000,FUNcluster="kmedoids",distances=NULL,link="single")
 {
-  if ( clustnr < 2) stop("Choose clustnr > 1")
-  di <- dist.gen(t(x),method=metric)
-  if ( do.gap | cln > 0 ){
-    gpr <- NULL
-    if ( do.gap ){
-      set.seed(rseed)
-      gpr <- clusGap(as.matrix(di), FUN = kmeans, K.max = clustnr, B = B.gap)
-      if ( cln == 0 ) cln <- maxSE(gpr$Tab[,3],gpr$Tab[,4],method=SE.method,SE.factor)
+    di <- dist.gen(t(x), method=metric)
+    if ( do.gap | sat | cln > 0 ){
+        gpr <- NULL
+        f <- if ( cln == 0 ) TRUE else FALSE
+        if ( do.gap ){
+            set.seed(rseed)
+            if ( FUNcluster == "kmeans" )   gpr <- clusGapExt(as.matrix(di), FUN = kmeans, K.max = clustnr, B = B.gap, iter.max=100)
+            if ( FUNcluster == "kmedoids" ) gpr <- clusGapExt(as.matrix(t(x)), FUN = function(x,k) pam(dist.gen(x,method=metric),k), K.max = clustnr, B = B.gap, method=metric)
+            if ( FUNcluster == "hclust" )   gpr <- clusGapExt(as.matrix(di), FUN = function(x,k){ y <- hclusterCBI(x,k,link=link,scaling=FALSE); y$cluster <- y$partition; y }, K.max = clustnr, B = B.gap)
+            if ( f ) cln <- maxSE(gpr$Tab[,3],gpr$Tab[,4],method=SE.method,SE.factor)
+        }
+        if ( sat ){
+            if ( ! do.gap ){
+                if ( FUNcluster == "kmeans" )   gpr <- clusGapExt(as.matrix(di), FUN = kmeans, K.max = clustnr, B = B.gap, iter.max=100, random=FALSE)
+                if ( FUNcluster == "kmedoids" ) gpr <- clusGapExt(as.matrix(t(x)), FUN = function(x,k) pam(dist.gen(x,method=metric),k), K.max = clustnr, B = B.gap, random=FALSE, method=metric)
+                if ( FUNcluster == "hclust" )   gpr <- clusGapExt(as.matrix(di), FUN = function(x,k){ y <- hclusterCBI(x,k,link=link,scaling=FALSE); y$cluster <- y$partition; y }, K.max = clustnr, B = B.gap, random=FALSE)
+            }
+            g <- gpr$Tab[,1]
+            y <- g[-length(g)] - g[-1]
+            mm <- numeric(length(y))
+            nn <- numeric(length(y))
+            for ( i in 1:length(y)){
+                mm[i] <- mean(y[i:length(y)])
+                nn[i] <- sqrt(var(y[i:length(y)]))
+            }
+            if ( f ) cln <- max(min(which( y - (mm + nn) < 0 )),1)
+        }
+        if ( cln <= 1 ) {
+            clb <- list(result=list(partition=rep(1,dim(x)[2])),bootmean=1)
+            names(clb$result$partition) <- names(x)
+            return(list(x=x, clb=clb, gpr=gpr, di=di))
+        }
+        if ( FUNcluster == "kmeans" )   clb <- clusterboot(di,B=bootnr,distances=FALSE,bootmethod="boot",clustermethod=kmeansCBI,krange=cln,scaling=FALSE,multipleboot=FALSE,bscompare=TRUE,seed=rseed)
+        if ( FUNcluster == "kmedoids" ) clb <- clusterboot(di,B=bootnr,bootmethod="boot",clustermethod=pamkCBI,k=cln,multipleboot=FALSE,bscompare=TRUE,seed=rseed)
+        if ( FUNcluster == "hclust" )   clb <- clusterboot(di,B=bootnr,distances=FALSE,bootmethod="boot",clustermethod=hclusterCBI,k=cln,link=link,scaling=FALSE,multipleboot=FALSE,bscompare=TRUE,seed=rseed)
+        return(list(x=x, clb=clb, gpr=gpr, di=di))
     }
-    if ( cln <= 1 ) {
-      clb <- list(result=list(partition=rep(1,dim(x)[2])),bootmean=1)
-      names(clb$result$partition) <- names(x)
-      return(list(x=x,clb=clb,gpr=gpr,di=di))
-    }
-    clb <- clusterboot(di,B=bootnr,distances=FALSE,bootmethod="boot",clustermethod=KmeansCBI,krange=cln,scaling=FALSE,multipleboot=FALSE,bscompare=TRUE,seed=rseed)
-    return(list(x=x,clb=clb,gpr=gpr,di=di))
-  }
 }
 
+
+dist.gen <- function(x, method="euclidean", ...) if ( method %in% c("spearman","pearson","kendall") ) as.dist( 1 - cor(t(x), method=method,...) ) else dist(x, method=method,...)
+
+clusGapExt <-function (x, FUNcluster, K.max, B = 100, verbose = interactive(), method="euclidean",random=TRUE,...)
+{
+    stopifnot(is.function(FUNcluster), length(dim(x)) == 2, K.max >=
+    2, (n <- nrow(x)) >= 1, (p <- ncol(x)) >= 1)
+    if (B != (B. <- as.integer(B)) || (B <- B.) <= 0)
+    stop("'B' has to be a positive integer")
+    if (is.data.frame(x))
+    x <- as.matrix(x)
+    ii <- seq_len(n)
+    W.k <- function(X, kk) {
+        clus <- if (kk > 1)
+        FUNcluster(X, kk, ...)$cluster
+        else rep.int(1L, nrow(X))
+        0.5 * sum(vapply(split(ii, clus), function(I) {
+            xs <- X[I, , drop = FALSE]
+            sum(dist.gen(xs,method=method)/nrow(xs))
+        }, 0))
+    }
+    logW <- E.logW <- SE.sim <- numeric(K.max)
+    if (verbose)
+    cat("Clustering k = 1,2,..., K.max (= ", K.max, "): .. ",
+    sep = "")
+    for (k in 1:K.max) logW[k] <- log(W.k(x, k))
+    if (verbose)
+    cat("done\n")
+    xs <- scale(x, center = TRUE, scale = FALSE)
+    m.x <- rep(attr(xs, "scaled:center"), each = n)
+    V.sx <- svd(xs)$v
+    rng.x1 <- apply(xs %*% V.sx, 2, range)
+    logWks <- matrix(0, B, K.max)
+    if (random){
+        if (verbose)
+        cat("Bootstrapping, b = 1,2,..., B (= ", B, ")  [one \".\" per sample]:\n",
+        sep = "")
+        for (b in 1:B) {
+            z1 <- apply(rng.x1, 2, function(M, nn) runif(nn, min = M[1],
+            max = M[2]), nn = n)
+            z <- tcrossprod(z1, V.sx) + m.x
+            ##z <- apply(x,2,function(m) runif(length(m),min=min(m),max=max(m)))
+            ##z <- apply(x,2,function(m) sample(m))
+            for (k in 1:K.max) {
+                logWks[b, k] <- log(W.k(z, k))
+            }
+            if (verbose)
+            cat(".", if (b%%50 == 0)
+            paste(b, "\n"))
+        }
+        if (verbose && (B%%50 != 0))
+        cat("", B, "\n")
+        E.logW <- colMeans(logWks)
+        SE.sim <- sqrt((1 + 1/B) * apply(logWks, 2, var))
+    }else{
+        E.logW <- rep(NA,K.max)
+        SE.sim <- rep(NA,K.max)
+    }
+    structure(class = "clusGap", list(Tab = cbind(logW, E.logW,
+    gap = E.logW - logW, SE.sim), n = n, B = B, FUNcluster = FUNcluster))
+}
+
+
 KmeansCBI <- function (data, krange, k = NULL, scaling = FALSE, runs = 1,
-    criterion = "ch", method="euclidean",...)
+criterion = "ch", method="euclidean",...)
 {
     if (!is.null(k))
-        krange <- k
+    krange <- k
     if (!identical(scaling, FALSE))
-        sdata <- scale(data, center = TRUE, scale = scaling)
+    sdata <- scale(data, center = TRUE, scale = scaling)
     else sdata <- data
     c1 <- Kmeansruns(sdata, krange, runs = runs, criterion = criterion, method = method,
-        ...)
+    ...)
     partition <- c1$cluster
     cl <- list()
     nc <- krange
     for (i in 1:nc) cl[[i]] <- partition == i
     out <- list(result = c1, nc = nc, clusterlist = cl, partition = partition,
-        clustermethod = "kmeans")
+    clustermethod = "kmeans")
     out
 }
 
 Kmeansruns <- function (data, krange = 2:10, criterion = "ch", iter.max = 100,
-    runs = 100, scaledata = FALSE, alpha = 0.001, critout = FALSE,
-    plot = FALSE, method="euclidean", ...)
+runs = 100, scaledata = FALSE, alpha = 0.001, critout = FALSE,
+plot = FALSE, method="euclidean", ...)
 {
     data <- as.matrix(data)
     if (criterion == "asw")
-        sdata <- dist(data)
+    sdata <- dist(data)
     if (scaledata)
-        data <- scale(data)
+    data <- scale(data)
     cluster1 <- 1 %in% krange
     crit <- numeric(max(krange))
     km <- list()
@@ -211,121 +315,117 @@ Kmeansruns <- function (data, krange = 2:10, criterion = "ch", iter.max = 100,
             for (i in 1:runs) {
                 options(show.error.messages = FALSE)
                 repeat {
-                  kmm <- try(Kmeans(data, k, iter.max = iter.max, method=method,
+                    kmm <- try(Kmeans(data, k, iter.max = iter.max, method=method,
                     ...))
-                  if (class(kmm) != "try-error")
+                    if (class(kmm) != "try-error")
                     break
                 }
                 options(show.error.messages = TRUE)
                 swss <- sum(kmm$withinss)
                 if (swss < minSS) {
-                  kmopt <- kmm
-                  minSS <- swss
+                    kmopt <- kmm
+                    minSS <- swss
                 }
                 if (plot) {
-                  par(ask = TRUE)
-                  pairs(data, col = kmm$cluster, main = swss)
+                    par(ask = TRUE)
+                    pairs(data, col = kmm$cluster, main = swss)
                 }
             }
             km[[k]] <- kmopt
             crit[k] <- switch(criterion, asw = cluster.stats(sdata,
-                km[[k]]$cluster)$avg.silwidth, ch = calinhara(data,
-                km[[k]]$cluster))
+            km[[k]]$cluster)$avg.silwidth, ch = calinhara(data,
+            km[[k]]$cluster))
             if (critout)
-                cat(k, " clusters ", crit[k], "\n")
+            cat(k, " clusters ", crit[k], "\n")
         }
     }
     if (cluster1)
-        cluster1 <- dudahart2(data, km[[2]]$cluster, alpha = alpha)$cluster1
+    cluster1 <- dudahart2(data, km[[2]]$cluster, alpha = alpha)$cluster1
     k.best <- which.max(crit)
     if (cluster1)
-        k.best <- 1
+    k.best <- 1
     km[[k.best]]$crit <- crit
     km[[k.best]]$bestk <- k.best
     out <- km[[k.best]]
     out
 }
 
-binompval <- function(p,N,n){
-  pval   <- pbinom(n,round(N,0),p,lower.tail=TRUE)
-  pval[!is.na(pval) & pval > 0.5] <- 1-pval[!is.na(pval) & pval > 0.5]
-  return(pval)
-}
+#### Outlier detection ####
 
-
-setGeneric("findoutliers", function(object,outminc=5,outlg=2,probthr=1e-3,thr=2**-(1:40),outdistquant=.75) standardGeneric("findoutliers"))
+setGeneric("findoutliers", function(object,outminc=5,outlg=2,probthr=1e-3,thr=2**-(1:40),outdistquant=.95, version = 2) standardGeneric("findoutliers"))
 
 setMethod("findoutliers",
-          signature = "SCseq",
-          definition = function(object,outminc,outlg,probthr,thr,outdistquant) {
-            if ( length(object@cluster$kpart) == 0 ) stop("run clustexp before findoutliers")
-            if ( ! is.numeric(outminc) ) stop("outminc has to be a non-negative integer") else if ( round(outminc) != outminc | outminc < 0 ) stop("outminc has to be a non-negative integer")
-            if ( ! is.numeric(outlg) ) stop("outlg has to be a non-negative integer") else if ( round(outlg) != outlg | outlg < 0 ) stop("outlg has to be a non-negative integer")
-            if ( ! is.numeric(probthr) ) stop("probthr has to be a number between 0 and 1") else if (  probthr < 0 | probthr > 1 ) stop("probthr has to be a number between 0 and 1")
-            if ( ! is.numeric(thr) ) stop("thr hast to be a vector of numbers between 0 and 1") else if ( min(thr) < 0 | max(thr) > 1 ) stop("thr hast to be a vector of numbers between 0 and 1")
-            if ( ! is.numeric(outdistquant) ) stop("outdistquant has to be a number between 0 and 1") else if (  outdistquant < 0 | outdistquant > 1 ) stop("outdistquant has to be a number between 0 and 1")
-
-            object@outlierpar <- list( outminc=outminc,outlg=outlg,probthr=probthr,thr=thr,outdistquant=outdistquant )
-            ### calibrate background model
-            m <- log2(apply(object@fdata,1,mean))
-            v <- log2(apply(object@fdata,1,var))
-            f <- m > -Inf & v > -Inf
-            m <- m[f]
-            v <- v[f]
-            mm <- -8
-            repeat{
-              fit <- lm(v ~ m + I(m^2))
-              if( coef(fit)[3] >= 0 | mm >= 3){
-                break
-              }
-              mm <- mm + .5
-              f <- m > mm
-              m <- m[f]
-              v <- v[f]
-            }
-            object@background <- list()
-            object@background$vfit <- fit
-            object@background$lvar <- function(x,object) 2**(coef(object@background$vfit)[1] + log2(x)*coef(object@background$vfit)[2] + coef(object@background$vfit)[3] * log2(x)**2)
-            object@background$lsize <- function(x,object) x**2/(max(x + 1e-6,object@background$lvar(x,object)) - x)
-
-            ### identify outliers
-            out   <- c()
-            stest <- rep(0,length(thr))
-            cprobs <- c()
-            for ( n in 1:max(object@cluster$kpart) ){
-              if ( sum(object@cluster$kpart == n) == 1 ){ cprobs <- append(cprobs,.5); names(cprobs)[length(cprobs)] <- names(object@cluster$kpart)[object@cluster$kpart == n]; next }
-              x <- object@fdata[,object@cluster$kpart == n]
-              x <- x[apply(x,1,max) > outminc,]
-              z <- t( apply(x,1,function(x){ apply( cbind( pnbinom(round(x,0),mu=mean(x),size=object@background$lsize(mean(x),object)) , 1 - pnbinom(round(x,0),mu=mean(x),size=object@background$lsize(mean(x),object)) ),1, min) } ) )
-              cp <- apply(z,2,function(x){ y <- p.adjust(x,method="BH"); y <- y[order(y,decreasing=FALSE)]; return(y[outlg]);})
-              f <- cp < probthr
-              cprobs <- append(cprobs,cp)
-              if ( sum(f) > 0 ) out <- append(out,names(x)[f])
-              for ( j in 1:length(thr) )  stest[j] <-  stest[j] + sum( cp < thr[j] )
-            }
-            object@out <-list(out=out,stest=stest,thr=thr,cprobs=cprobs)
-
-            ### cluster outliers
-            clp2p.cl <- c()
-            cols <- names(object@fdata)
-            di <- as.data.frame(object@distances)
-            for ( i in 1:max(object@cluster$kpart) ) {
-              tcol <- cols[object@cluster$kpart == i]
-              if ( sum(!(tcol %in% out)) > 1 ) clp2p.cl <- append(clp2p.cl,as.vector(t(di[tcol[!(tcol %in% out)],tcol[!(tcol %in% out)]])))
-            }
-            clp2p.cl <- clp2p.cl[clp2p.cl>0]
-
-            cpart <- object@cluster$kpart
-            cadd  <- list()
-            if ( length(out) > 0 ){
-              if (length(out) == 1){
-                cadd <- list(out)
-              }else{
-                n <- out
-                m <- as.data.frame(di[out,out])
-
-                for ( i in 1:length(out) ){
-                  if ( length(n) > 1 ){
+signature = "SCseq",
+definition = function(object,outminc,outlg,probthr,thr,outdistquant, version) {
+    if ( length(object@cluster$kpart) == 0 ) stop("run clustexp before findoutliers")
+    if ( ! is.numeric(outminc) ) stop("outminc has to be a non-negative integer") else if ( round(outminc) != outminc | outminc < 0 ) stop("outminc has to be a non-negative integer")
+    if ( ! is.numeric(outlg) ) stop("outlg has to be a non-negative integer") else if ( round(outlg) != outlg | outlg < 0 ) stop("outlg has to be a non-negative integer")
+    if ( ! is.numeric(probthr) ) stop("probthr has to be a number between 0 and 1") else if (  probthr < 0 | probthr > 1 ) stop("probthr has to be a number between 0 and 1")
+    if ( ! is.numeric(thr) ) stop("thr hast to be a vector of numbers between 0 and 1") else if ( min(thr) < 0 | max(thr) > 1 ) stop("thr hast to be a vector of numbers between 0 and 1")
+    if ( ! is.numeric(outdistquant) ) stop("outdistquant has to be a number between 0 and 1") else if (  outdistquant < 0 | outdistquant > 1 ) stop("outdistquant has to be a number between 0 and 1")
+    if (! version %in% c(1,2) ) stop("version has to be 1 or 2")
+    
+    object@outlierpar <- list( outminc=outminc,outlg=outlg,probthr=probthr,thr=thr,outdistquant=outdistquant )
+    ### calibrate background model
+    m <- log2(apply(object@fdata,1,mean))
+    v <- log2(apply(object@fdata,1,var))
+    f <- m > -Inf & v > -Inf
+    m <- m[f]
+    v <- v[f]
+    mm <- -8
+    repeat{
+        fit <- lm(v ~ m + I(m^2))
+        if( coef(fit)[3] >= 0 | mm >= 3){
+            break
+        }
+        mm <- mm + .5
+        f <- m > mm
+        m <- m[f]
+        v <- v[f]
+    }
+    object@background <- list()
+    object@background$vfit <- fit
+    object@background$lvar <- function(x,object) 2**(coef(object@background$vfit)[1] + log2(x)*coef(object@background$vfit)[2] + coef(object@background$vfit)[3] * log2(x)**2)
+    object@background$lsize <- function(x,object) x**2/(max(x + 1e-6,object@background$lvar(x,object)) - x)
+    
+    ### identify outliers
+    out   <- c()
+    stest <- rep(0,length(thr))
+    cprobs <- c()
+    for ( n in 1:max(object@cluster$kpart) ){
+        if ( sum(object@cluster$kpart == n) == 1 ){ cprobs <- append(cprobs,.5); names(cprobs)[length(cprobs)] <- names(object@cluster$kpart)[object@cluster$kpart == n]; next }
+        x <- object@fdata[,object@cluster$kpart == n]
+        x <- x[apply(x,1,max) > outminc,]
+        z <- t( apply(x,1,function(x){ apply( cbind( pnbinom(round(x,0),mu=mean(x),size=object@background$lsize(mean(x),object)) , 1 - pnbinom(round(x,0),mu=mean(x),size=object@background$lsize(mean(x),object)) ),1, min) } ) )
+        cp <- apply(z,2,function(x){ y <- p.adjust(x,method="BH"); y <- y[order(y,decreasing=FALSE)]; return(y[outlg]);})
+        f <- cp < probthr
+        cprobs <- append(cprobs,cp)
+        if ( sum(f) > 0 ) out <- append(out,names(x)[f])
+        for ( j in 1:length(thr) )  stest[j] <-  stest[j] + sum( cp < thr[j] )
+    }
+    object@out <-list(out=out,stest=stest,thr=thr,cprobs=cprobs)
+    
+    ### cluster outliers
+    clp2p.cl <- c()
+    cols <- names(object@fdata)
+    cpart <- object@cluster$kpart
+    di   <- as.data.frame(object@distances)
+    for ( i in 1:max(cpart) ) {
+        tcol <- cols[cpart == i]
+        if ( sum(!(tcol %in% out)) > 1 ) clp2p.cl <- append(clp2p.cl,as.vector(t(di[tcol[!(tcol %in% out)],tcol[!(tcol %in% out)]])))
+    }
+    clp2p.cl <- clp2p.cl[clp2p.cl>0]
+    
+    cadd  <- list()
+    if ( length(out) > 0 ){
+        if (length(out) == 1){
+            cadd <- list(out)
+        }else{
+            n <- out
+            m <- as.data.frame(di[out,out])
+            
+            for ( i in 1:length(out) ){
+                if ( length(n) > 1 ){
                     o   <- order(apply(cbind(m,1:dim(m)[1]),1,function(x)  min(x[1:(length(x)-1)][-x[length(x)]])),decreasing=FALSE)
                     m <- m[o,o]
                     n <- n[o]
@@ -337,37 +437,168 @@ setMethod("findoutliers",
                     n <- n[g]
                     m <- m[g,g]
                     if ( sum(g) == 0 ) break
-
-                  }else if (length(n) == 1){
+                    
+                }else if (length(n) == 1){
                     cadd[[i]] <- n
                     break
-                  }
                 }
-              }
-
-              for ( i in 1:length(cadd) ){
-                cpart[cols %in% cadd[[i]]] <- max(cpart) + 1
-              }
             }
-
-            ### determine final clusters
-            for ( i in 1:max(cpart) ){
-              d <- object@fdata[,cols[cpart == i]]
-              if ( sum(cpart == i) == 1 ) cent <- d else cent <- apply(d,1,mean)
-              if ( i == 1 ) dcent <- data.frame(cent) else dcent <- cbind(dcent,cent)
-              if ( i == 1 ) tmp <- data.frame(apply(object@fdata[,cols],2,dist.gen.pairs,y=cent,method=object@clusterpar$metric)) else tmp <- cbind(tmp,apply(object@fdata[,cols],2,dist.gen.pairs,y=cent,method=object@clusterpar$metric))
+        }
+        
+        for ( i in 1:length(cadd) ){
+            cpart[cols %in% cadd[[i]]] <- max(cpart) + 1
+        }
+    }
+    
+    ### determine final clusters
+    if (version == 1) {
+        for ( i in 1:max(cpart) ){
+            d <- object@fdata[,cols[cpart == i]]
+            if ( sum(cpart == i) == 1 ) cent <- d else cent <- apply(d,1,mean)
+            if ( i == 1 ) dcent <- data.frame(cent) else dcent <- cbind(dcent,cent)
+            if ( i == 1 ) tmp <- data.frame(apply(object@fdata[,cols],2,dist.gen.pairs,y=cent,method=object@clusterpar$metric)) else tmp <- cbind(tmp,apply(object@fdata[,cols],2,dist.gen.pairs,y=cent,method=object@clusterpar$metric))
+        }
+    } else if (version == 2) {
+        flag <- 1
+        for ( i in 1:max(cpart) ){
+            f <- cols[cpart == i]
+            if ( length(f) > 0 ){
+                d <- object@fdata
+                if ( length(f) == 1 ){
+                    cent <- d[,f]
+                }else{
+                    if ( object@clusterpar$FUNcluster == "kmedoids" ){
+                        x <- apply(as.matrix(dist.gen(t(d[,f]),method=object@clusterpar$metric)),2,mean)
+                        cent <- d[,f[which(x == min(x))[1]]]
+                    }else{
+                        cent <- apply(d[,f],1,mean)
+                    }
+                }
+                if ( flag == 1 ) dcent <- data.frame(cent) else dcent <- cbind(dcent,cent)
+                if ( flag == 1 ) tmp <- data.frame(apply(d,2,dist.gen.pairs,y=cent,method=object@clusterpar$metric)) else tmp <- cbind(tmp,apply(d,2,dist.gen.pairs,y=cent,method=object@clusterpar$metric))
+                flag <- 0
             }
-            cpart <- apply(tmp,1,function(x) order(x,decreasing=FALSE)[1])
+        }
+    }
+    
+    cpart <- apply(tmp,1,function(x) order(x,decreasing=FALSE)[1])
+    
+    for  ( i in max(cpart):1){if (sum(cpart==i)==0) cpart[cpart>i] <- cpart[cpart>i] - 1 }
+    
+    object@cpart <- cpart
+    
+    set.seed(111111)
+    object@fcol <- sample(rainbow(max(cpart)))
+    return(object)
+}
+)
 
-            for  ( i in max(cpart):1){if (sum(cpart==i)==0) cpart[cpart>i] <- cpart[cpart>i] - 1 }
+#### tSNEmap methods and functions ####
 
-            object@cpart <- cpart
+setGeneric("comptsne", function(object,rseed=15555,sammonmap=FALSE,initial_cmd=TRUE,...) standardGeneric("comptsne"))
 
-            set.seed(111111)
-            object@fcol <- sample(rainbow(max(cpart)))
-            return(object)
-          }
-        )
+setMethod("comptsne",
+signature = "SCseq",
+definition = function(object,rseed,sammonmap,...){
+    if ( length(object@cluster$kpart) == 0 ) stop("run clustexp before comptsne")
+    set.seed(rseed)
+    di <- if ( object@clusterpar$FUNcluster == "kmedoids") as.dist(object@distances) else dist.gen(as.matrix(object@distances))
+    if ( sammonmap ){
+        object@tsne <- as.data.frame(sammon(di,k=2)$points)
+    } else {
+        #  ts <- if ( initial_cmd ) tsne(di,initial_config=cmdscale(di,k=2),...) else
+        ts <- tsne(di,k=2,...)
+        object@tsne <- as.data.frame(ts)
+    }
+    return(object)
+}
+)
+
+#### Differential gene expression analysis
+
+#### Plot clustheatmap
+
+setGeneric("clustheatmap", function(object, final=FALSE, hmethod="single") standardGeneric("clustheatmap"))
+
+setMethod("clustheatmap",
+signature = "SCseq",
+definition = function(object,final,hmethod){
+    if ( final & length(object@cpart) == 0 ) stop("run findoutliers before clustheatmap")
+    if ( !final & length(object@cluster$kpart) == 0 ) stop("run clustexp before clustheatmap")
+    x <- object@fdata
+    part <- if ( final ) object@cpart else object@cluster$kpart
+    na <- c()
+    j <- 0
+    for ( i in 1:max(part) ){
+        if ( sum(part == i) == 0 ) next
+        j <- j + 1
+        na <- append(na,i)
+        d <- x[,part == i]
+        if ( sum(part == i) == 1 ) cent <- d else cent <- apply(d,1,mean)
+        if ( j == 1 ) tmp <- data.frame(cent) else tmp <- cbind(tmp,cent)
+    }
+    names(tmp) <- paste("cl",na,sep=".")
+    ld <- if ( object@clusterpar$FUNcluster == "kmedoids" ) dist.gen(t(tmp),method=object@clusterpar$metric) else dist.gen(as.matrix(dist.gen(t(tmp),method=object@clusterpar$metric)))
+    if ( max(part) > 1 )  cclmo <- hclust(ld,method=hmethod)$order else cclmo <- 1
+    q <- part
+    for ( i in 1:max(part) ){
+        q[part == na[cclmo[i]]] <- i
+    }
+    part <- q
+    di <-  if ( object@clusterpar$FUNcluster == "kmedoids" ) object@distances else as.data.frame( as.matrix( dist.gen(t(object@distances)) ) )
+    pto <- part[order(part,decreasing=FALSE)]
+    ptn <- c()
+    for ( i in 1:max(pto) ){ pt <- names(pto)[pto == i]; z <- if ( length(pt) == 1 ) pt else pt[hclust(as.dist(t(di[pt,pt])),method=hmethod)$order]; ptn <- append(ptn,z) }
+    col <- object@fcol
+    mi  <- min(di,na.rm=TRUE)
+    ma  <- max(di,na.rm=TRUE)
+    layout(matrix(data=c(1,3,2,4), nrow=2, ncol=2), widths=c(5,1,5,1), heights=c(5,1,1,1))
+    ColorRamp   <- colorRampPalette(brewer.pal(n = 7,name = "RdYlBu"))(100)
+    ColorLevels <- seq(mi, ma, length=length(ColorRamp))
+    if ( mi == ma ){
+        ColorLevels <- seq(0.99*mi, 1.01*ma, length=length(ColorRamp))
+    }
+    par(mar = c(3,5,2.5,2))
+    image(as.matrix(di[ptn,ptn]),col=ColorRamp,axes=FALSE)
+    abline(0,1)
+    box()
+    
+    tmp <- c()
+    for ( u in 1:max(part) ){
+        ol <- (0:(length(part) - 1)/(length(part) - 1))[ptn %in% names(x)[part == u]]
+        points(rep(0,length(ol)),ol,col=col[cclmo[u]],pch=15,cex=.75)
+        points(ol,rep(0,length(ol)),col=col[cclmo[u]],pch=15,cex=.75)
+        tmp <- append(tmp,mean(ol))
+    }
+    axis(1,at=tmp,lab=cclmo)
+    axis(2,at=tmp,lab=cclmo)
+    par(mar = c(3,2.5,2.5,2))
+    image(1, ColorLevels,
+    matrix(data=ColorLevels, ncol=length(ColorLevels),nrow=1),
+    col=ColorRamp,
+    xlab="",ylab="",
+    xaxt="n")
+    layout(1)
+    return(cclmo)
+}
+)
+
+
+
+
+#### Others ####
+
+dist.gen.pairs <- function(x,y,...) dist.gen(t(cbind(x,y)),...)
+
+
+
+binompval <- function(p,N,n){
+  pval   <- pbinom(n,round(N,0),p,lower.tail=TRUE)
+  pval[!is.na(pval) & pval > 0.5] <- 1-pval[!is.na(pval) & pval > 0.5]
+  return(pval)
+}
+
+
 
 setGeneric("plotgap", function(object) standardGeneric("plotgap"))
 
@@ -548,83 +779,8 @@ plotdiffgenes <- function(z,gene=g){
   abline(v=length(x) + .5)
 }
 
-setGeneric("clustheatmap", function(object,final=FALSE,hmethod="single") standardGeneric("clustheatmap"))
 
-setMethod("clustheatmap",
-          signature = "SCseq",
-          definition = function(object,final,hmethod){
-            if ( final & length(object@cpart) == 0 ) stop("run findoutliers before clustheatmap")
-            if ( !final & length(object@cluster$kpart) == 0 ) stop("run clustexp before clustheatmap")
-            x <- object@fdata
-            part <- if ( final ) object@cpart else object@cluster$kpart
-            na <- c()
-            j <- 0
-            for ( i in 1:max(part) ){
-              if ( sum(part == i) == 0 ) next
-              j <- j + 1
-              na <- append(na,i)
-              d <- x[,part == i]
-              if ( sum(part == i) == 1 ) cent <- d else cent <- apply(d,1,mean)
-              if ( j == 1 ) tmp <- data.frame(cent) else tmp <- cbind(tmp,cent)
-            }
-            names(tmp) <- paste("cl",na,sep=".")
-            if ( max(part) > 1 )  cclmo <- hclust(dist.gen(as.matrix(dist.gen(t(tmp),method=object@clusterpar$metric))),method=hmethod)$order else cclmo <- 1
-            q <- part
-            for ( i in 1:max(part) ){
-              q[part == na[cclmo[i]]] <- i
-            }
-            part <- q
-            di <- as.data.frame( as.matrix( dist.gen(t(object@distances)) ) )
-            pto <- part[order(part,decreasing=FALSE)]
-            ptn <- c()
-            for ( i in 1:max(pto) ){ pt <- names(pto)[pto == i]; z <- if ( length(pt) == 1 ) pt else pt[hclust(as.dist(t(di[pt,pt])),method=hmethod)$order]; ptn <- append(ptn,z) }
-            col <- object@fcol
-            mi  <- min(di,na.rm=TRUE)
-            ma  <- max(di,na.rm=TRUE)
-            layout(matrix(data=c(1,3,2,4), nrow=2, ncol=2), widths=c(5,1,5,1), heights=c(5,1,1,1))
-            ColorRamp   <- colorRampPalette(brewer.pal(n = 7,name = "RdYlBu"))(100)
-            ColorLevels <- seq(mi, ma, length=length(ColorRamp))
-            if ( mi == ma ){
-              ColorLevels <- seq(0.99*mi, 1.01*ma, length=length(ColorRamp))
-            }
-            par(mar = c(3,5,2.5,2))
-            image(as.matrix(di[ptn,ptn]),col=ColorRamp,axes=FALSE)
-            abline(0,1)
-            box()
 
-            tmp <- c()
-            for ( u in 1:max(part) ){
-              ol <- (0:(length(part) - 1)/(length(part) - 1))[ptn %in% names(x)[part == u]]
-              points(rep(0,length(ol)),ol,col=col[cclmo[u]],pch=15,cex=.75)
-              points(ol,rep(0,length(ol)),col=col[cclmo[u]],pch=15,cex=.75)
-              tmp <- append(tmp,mean(ol))
-            }
-            axis(1,at=tmp,lab=cclmo)
-            axis(2,at=tmp,lab=cclmo)
-            par(mar = c(3,2.5,2.5,2))
-            image(1, ColorLevels,
-                  matrix(data=ColorLevels, ncol=length(ColorLevels),nrow=1),
-                  col=ColorRamp,
-                  xlab="",ylab="",
-                  xaxt="n")
-            layout(1)
-            return(cclmo)
-          }
-          )
-
-setGeneric("comptsne", function(object,rseed=15555) standardGeneric("comptsne"))
-
-setMethod("comptsne",
-          signature = "SCseq",
-          definition = function(object,rseed){
-            if ( length(object@cluster$kpart) == 0 ) stop("run clustexp before comptsne")
-            set.seed(rseed)
-            di <- dist.gen(as.matrix(object@distances))
-            ts <- tsne(di,k=2)
-            object@tsne <- as.data.frame(ts)
-            return(object)
-          }
-          )
 
 setGeneric("plottsne", function(object,final=TRUE) standardGeneric("plottsne"))
 
@@ -1086,83 +1242,9 @@ hclusterCBI <- function (data, k, cut = "number", link="ward", method="euclidean
     out
 }
 
-clustfun2 <- function(x,clustnr=20,bootnr=50,metric="pearson",do.gap=TRUE,sat=FALSE,SE.method="Tibs2001SEmax",SE.factor=.25,B.gap=50,cln=0,rseed=17000,FUNcluster="kmedoids",distances=NULL,link="single")
-{
-  if ( clustnr < 2) stop("Choose clustnr > 1")
-  di <- if ( FUNcluster == "kmedoids" ) t(x) else dist.gen(t(x),method=metric)
-  if ( do.gap | sat | cln > 0 ){
-    gpr <- NULL
-    f <- if ( cln == 0 ) TRUE else FALSE
-    if ( do.gap ){
-      set.seed(rseed)
-      if ( FUNcluster == "kmeans" )   gpr <- clusGapExt(as.matrix(di), FUN = kmeans, K.max = clustnr, B = B.gap, iter.max=100)
-      if ( FUNcluster == "kmedoids" ) gpr <- clusGapExt(as.matrix(di), FUN = function(x,k) pam(dist.gen(x,method=metric),k), K.max = clustnr, B = B.gap, method=metric)
-      if ( FUNcluster == "hclust" )   gpr <- clusGapExt(as.matrix(di), FUN = function(x,k){ y <- hclusterCBI(x,k,link=link,scaling=FALSE); y$cluster <- y$partition; y }, K.max = clustnr, B = B.gap)
-      if ( f ) cln <- maxSE(gpr$Tab[,3],gpr$Tab[,4],method=SE.method,SE.factor)
-    }
-    if ( sat ){
-      if ( ! do.gap ){
-        if ( FUNcluster == "kmeans" )   gpr <- clusGapExt(as.matrix(di), FUN = kmeans, K.max = clustnr, B = B.gap, iter.max=100, random=FALSE)
-        if ( FUNcluster == "kmedoids" ) gpr <- clusGapExt(as.matrix(di), FUN = function(x,k) pam(dist.gen(x,method=metric),k), K.max = clustnr, B = B.gap, random=FALSE, method=metric)
-        if ( FUNcluster == "hclust" )   gpr <- clusGapExt(as.matrix(di), FUN = function(x,k){ y <- hclusterCBI(x,k,link=link,scaling=FALSE); y$cluster <- y$partition; y }, K.max = clustnr, B = B.gap, random=FALSE)
-      }
-      g <- gpr$Tab[,1]
-      y <- g[-length(g)] - g[-1]
-      mm <- numeric(length(y))
-      nn <- numeric(length(y))
-      for ( i in 1:length(y)){
-        mm[i] <- mean(y[i:length(y)])
-        nn[i] <- sqrt(var(y[i:length(y)]))
-      }
-      if ( f ) cln <- max(min(which( y - (mm + nn) < 0 )),1)
-    }
-    if ( cln <= 1 ) {
-      clb <- list(result=list(partition=rep(1,dim(x)[2])),bootmean=1)
-      names(clb$result$partition) <- names(x)
-      return(list(x=x,clb=clb,gpr=gpr,di=if ( FUNcluster == "kmedoids" ) dist.gen(di,method=metric) else di))
-    }
-    if ( FUNcluster == "kmeans" ) clb <- clusterboot(di,B=bootnr,distances=FALSE,bootmethod="boot",clustermethod=kmeansCBI,krange=cln,scaling=FALSE,multipleboot=FALSE,bscompare=TRUE,seed=rseed)
-    if ( FUNcluster == "kmedoids" ) clb <- clusterboot(dist.gen(di,method=metric),B=bootnr,bootmethod="boot",clustermethod=pamkCBI,k=cln,multipleboot=FALSE,bscompare=TRUE,seed=rseed)
-    if ( FUNcluster == "hclust" ) clb <- clusterboot(di,B=bootnr,distances=FALSE,bootmethod="boot",clustermethod=hclusterCBI,k=cln,link=link,scaling=FALSE,multipleboot=FALSE,bscompare=TRUE,seed=rseed)
-    return(list(x=x,clb=clb,gpr=gpr,di=if ( FUNcluster == "kmedoids" ) dist.gen(di,method=metric) else di))
-  }
-}
 
 
 
-setGeneric("clustexp", function(object, clustnr=20, bootnr=50, metric="pearson", do.gap=TRUE, sat=FALSE, SE.method="Tibs2001SEmax", SE.factor=.25, B.gap=50, cln=0, rseed=17000, FUNcluster="kmeans", version=2) standardGeneric("clustexp"))
-
-setMethod("clustexp",
-          signature = "SCseq",
-          definition = function(object,clustnr,bootnr,metric,do.gap,sat,SE.method,SE.factor,B.gap,cln,rseed,FUNcluster, version) {
-            if ( ! is.numeric(clustnr) ) stop("clustnr has to be a positive integer") else if ( round(clustnr) != clustnr | clustnr <= 0 ) stop("clustnr has to be a positive integer")
-            if ( ! is.numeric(bootnr) ) stop("bootnr has to be a positive integer") else if ( round(bootnr) != bootnr | bootnr <= 0 ) stop("bootnr has to be a positive integer")
-            if ( ! ( metric %in% c( "spearman","pearson","kendall","euclidean","maximum","manhattan","canberra","binary","minkowski") ) ) stop("metric has to be one of the following: spearman, pearson, kendall, euclidean, maximum, manhattan, canberra, binary, minkowski")
-            if ( ! ( SE.method %in% c( "firstSEmax","Tibs2001SEmax","globalSEmax","firstmax","globalmax") ) ) stop("SE.method has to be one of the following: firstSEmax, Tibs2001SEmax, globalSEmax, firstmax, globalmax")
-            if ( ! is.numeric(SE.factor) ) stop("SE.factor has to be a non-negative integer") else if  ( SE.factor < 0 )  stop("SE.factor has to be a non-negative integer")
-            if ( ! ( is.numeric(do.gap) | is.logical(do.gap) ) ) stop( "do.gap has to be logical (TRUE/FALSE)" )
-            if ( ! ( is.numeric(sat) | is.logical(sat) ) ) stop( "sat has to be logical (TRUE/FALSE)" )
-            if ( ! is.numeric(B.gap) ) stop("B.gap has to be a positive integer") else if ( round(B.gap) != B.gap | B.gap <= 0 ) stop("B.gap has to be a positive integer")
-            if ( ! is.numeric(cln) ) stop("cln has to be a non-negative integer") else if ( round(cln) != cln | cln < 0 ) stop("cln has to be a non-negative integer")
-            if ( ! is.numeric(rseed) ) stop("rseed has to be numeric")
-            if ( !do.gap & !sat & cln == 0 ) stop("cln has to be a positive integer or either do.gap or sat has to be TRUE")
-            if ( ! ( FUNcluster %in% c("kmeans","hclust","kmedoids") ) ) stop("FUNcluster has to be one of the following: kmeans, hclust,kmedoids")
-            if ( ! version %in% c(1, 2) ) stop ("version has to be 1 or 2")
-            object@clusterpar <- list(clustnr=clustnr,bootnr=bootnr,metric=metric,do.gap=do.gap,sat=sat,SE.method=SE.method,SE.factor=SE.factor,B.gap=B.gap,cln=cln,rseed=rseed,FUNcluster=FUNcluster, version=version)
-            if (version == 1) {
-                y <- clustfun(object@fdata,clustnr,bootnr,metric,do.gap,SE.method,SE.factor,B.gap,cln,rseed)
-                clb = "None"
-            } else if (version == 2) {
-                y <- clustfun2(object@fdata,clustnr,bootnr,metric,do.gap,sat,SE.method,SE.factor,B.gap,cln,rseed,FUNcluster)
-                clb <- y$clb
-            }
-            object@cluster   <- list(kpart=y$clb$result$partition, jaccard=y$clb$bootmean, gap=y$gpr, clb=clb)
-            object@distances <- as.matrix( y$di )
-            set.seed(111111)
-            object@fcol <- sample(rainbow(max(y$clb$result$partition)))
-            return(object)
-          }
-          )
 
 
 plotheatmap <- function(x,xpart=NULL,xcol=NULL,xlab=TRUE,ypart=NULL,ycol=NULL,ylab=TRUE,xgrid=FALSE,ygrid=FALSE){
@@ -1892,65 +1974,6 @@ smedian <- function(x,iter.max=100,verbose=FALSE){
 
 ## rows are clustered !!
 
-clusGapExt <-function (x, FUNcluster, K.max, B = 100, verbose = interactive(), method="euclidean",random=TRUE,
-    ...)
-{
-     stopifnot(is.function(FUNcluster), length(dim(x)) == 2, K.max >=
-        2, (n <- nrow(x)) >= 1, (p <- ncol(x)) >= 1)
-    if (B != (B. <- as.integer(B)) || (B <- B.) <= 0)
-        stop("'B' has to be a positive integer")
-    if (is.data.frame(x))
-        x <- as.matrix(x)
-    ii <- seq_len(n)
-    W.k <- function(X, kk) {
-        clus <- if (kk > 1)
-            FUNcluster(X, kk, ...)$cluster
-        else rep.int(1L, nrow(X))
-        0.5 * sum(vapply(split(ii, clus), function(I) {
-            xs <- X[I, , drop = FALSE]
-            sum(dist.gen(xs,method=method)/nrow(xs))
-        }, 0))
-    }
-    logW <- E.logW <- SE.sim <- numeric(K.max)
-    if (verbose)
-        cat("Clustering k = 1,2,..., K.max (= ", K.max, "): .. ",
-            sep = "")
-    for (k in 1:K.max) logW[k] <- log(W.k(x, k))
-    if (verbose)
-        cat("done\n")
-    xs <- scale(x, center = TRUE, scale = FALSE)
-    m.x <- rep(attr(xs, "scaled:center"), each = n)
-    V.sx <- svd(xs)$v
-    rng.x1 <- apply(xs %*% V.sx, 2, range)
-    logWks <- matrix(0, B, K.max)
-     if (random){
-       if (verbose)
-         cat("Bootstrapping, b = 1,2,..., B (= ", B, ")  [one \".\" per sample]:\n",
-             sep = "")
-       for (b in 1:B) {
-         z1 <- apply(rng.x1, 2, function(M, nn) runif(nn, min = M[1],
-             max = M[2]), nn = n)
-         z <- tcrossprod(z1, V.sx) + m.x
-         ##z <- apply(x,2,function(m) runif(length(m),min=min(m),max=max(m)))
-         ##z <- apply(x,2,function(m) sample(m))
-         for (k in 1:K.max) {
-           logWks[b, k] <- log(W.k(z, k))
-         }
-         if (verbose)
-           cat(".", if (b%%50 == 0)
-               paste(b, "\n"))
-       }
-       if (verbose && (B%%50 != 0))
-         cat("", B, "\n")
-       E.logW <- colMeans(logWks)
-       SE.sim <- sqrt((1 + 1/B) * apply(logWks, 2, var))
-     }else{
-       E.logW <- rep(NA,K.max)
-       SE.sim <- rep(NA,K.max)
-     }
-    structure(class = "clusGap", list(Tab = cbind(logW, E.logW,
-        gap = E.logW - logW, SE.sim), n = n, B = B, FUNcluster = FUNcluster))
-}
 
 setGeneric("plotsaturation", function(object,disp=FALSE) standardGeneric("plotsaturation"))
 
@@ -1985,155 +2008,7 @@ setMethod("plotsaturation",
           )
 
 
-setGeneric("findoutliers2", function(object,outminc=5,outlg=2,probthr=1e-3,thr=2**-(1:40),outdistquant=.95) standardGeneric("findoutliers2"))
 
-setMethod("findoutliers2",
-          signature = "SCseq",
-          definition = function(object,outminc,outlg,probthr,thr,outdistquant) {
-            if ( length(object@cluster$kpart) == 0 ) stop("run clustexp before findoutliers")
-            if ( ! is.numeric(outminc) ) stop("outminc has to be a non-negative integer") else if ( round(outminc) != outminc | outminc < 0 ) stop("outminc has to be a non-negative integer")
-            if ( ! is.numeric(outlg) ) stop("outlg has to be a non-negative integer") else if ( round(outlg) != outlg | outlg < 0 ) stop("outlg has to be a non-negative integer")
-            if ( ! is.numeric(probthr) ) stop("probthr has to be a number between 0 and 1") else if (  probthr < 0 | probthr > 1 ) stop("probthr has to be a number between 0 and 1")
-            if ( ! is.numeric(thr) ) stop("thr hast to be a vector of numbers between 0 and 1") else if ( min(thr) < 0 | max(thr) > 1 ) stop("thr hast to be a vector of numbers between 0 and 1")
-            if ( ! is.numeric(outdistquant) ) stop("outdistquant has to be a number between 0 and 1") else if (  outdistquant < 0 | outdistquant > 1 ) stop("outdistquant has to be a number between 0 and 1")
-
-            object@outlierpar <- list( outminc=outminc,outlg=outlg,probthr=probthr,thr=thr,outdistquant=outdistquant )
-            ### calibrate background model
-            m <- log2(apply(object@fdata,1,mean))
-            v <- log2(apply(object@fdata,1,var))
-            f <- m > -Inf & v > -Inf
-            m <- m[f]
-            v <- v[f]
-            mm <- -8
-            repeat{
-              fit <- lm(v ~ m + I(m^2))
-              if( coef(fit)[3] >= 0 | mm >= 3){
-                break
-              }
-              mm <- mm + .5
-              f <- m > mm
-              m <- m[f]
-              v <- v[f]
-            }
-            object@background <- list()
-            object@background$vfit <- fit
-            object@background$lvar <- function(x,object) 2**(coef(object@background$vfit)[1] + log2(x)*coef(object@background$vfit)[2] + coef(object@background$vfit)[3] * log2(x)**2)
-            object@background$lsize <- function(x,object) x**2/(max(x + 1e-6,object@background$lvar(x,object)) - x)
-
-            ### identify outliers
-            out   <- c()
-            stest <- rep(0,length(thr))
-            cprobs <- c()
-            for ( n in 1:max(object@cluster$kpart) ){
-              if ( sum(object@cluster$kpart == n) == 1 ){ cprobs <- append(cprobs,.5); names(cprobs)[length(cprobs)] <- names(object@cluster$kpart)[object@cluster$kpart == n]; next }
-              x <- object@fdata[,object@cluster$kpart == n]
-              x <- x[apply(x,1,max) > outminc,]
-              z <- t( apply(x,1,function(x){ apply( cbind( pnbinom(round(x,0),mu=mean(x),size=object@background$lsize(mean(x),object)) , 1 - pnbinom(round(x,0),mu=mean(x),size=object@background$lsize(mean(x),object)) ),1, min) } ) )
-              cp <- apply(z,2,function(x){ y <- p.adjust(x,method="BH"); y <- y[order(y,decreasing=FALSE)]; return(y[outlg]);})
-              f <- cp < probthr
-              cprobs <- append(cprobs,cp)
-              if ( sum(f) > 0 ) out <- append(out,names(x)[f])
-              for ( j in 1:length(thr) )  stest[j] <-  stest[j] + sum( cp < thr[j] )
-            }
-            object@out <-list(out=out,stest=stest,thr=thr,cprobs=cprobs)
-
-            ### cluster outliers
-            clp2p.cl <- c()
-            cols <- names(object@fdata)
-            cpart <- object@cluster$kpart
-            di   <- as.data.frame(object@distances)
-            for ( i in 1:max(cpart) ) {
-              tcol <- cols[cpart == i]
-              if ( sum(!(tcol %in% out)) > 1 ) clp2p.cl <- append(clp2p.cl,as.vector(t(di[tcol[!(tcol %in% out)],tcol[!(tcol %in% out)]])))
-            }
-            clp2p.cl <- clp2p.cl[clp2p.cl>0]
-
-            cadd  <- list()
-            if ( length(out) > 0 ){
-              if (length(out) == 1){
-                cadd <- list(out)
-              }else{
-                n <- out
-                m <- as.data.frame(di[out,out])
-
-                for ( i in 1:length(out) ){
-                  if ( length(n) > 1 ){
-                    o   <- order(apply(cbind(m,1:dim(m)[1]),1,function(x)  min(x[1:(length(x)-1)][-x[length(x)]])),decreasing=FALSE)
-                    m <- m[o,o]
-                    n <- n[o]
-                    f <- m[,1] < quantile(clp2p.cl,outdistquant) | m[,1] == min(clp2p.cl)
-                    ind <- 1
-                    if ( sum(f) > 1 ) for ( j in 2:sum(f) ) if ( apply(m[f,f][j,c(ind,j)] > quantile(clp2p.cl,outdistquant) ,1,sum) == 0 ) ind <- append(ind,j)
-                    cadd[[i]] <- n[f][ind]
-                    g <- ! n %in% n[f][ind]
-                    n <- n[g]
-                    m <- m[g,g]
-                    if ( sum(g) == 0 ) break
-
-                  }else if (length(n) == 1){
-                    cadd[[i]] <- n
-                    break
-                  }
-                }
-              }
-
-              for ( i in 1:length(cadd) ){
-                cpart[cols %in% cadd[[i]]] <- max(cpart) + 1
-              }
-            }
-
-            ### determine final clusters
-            flag <- 1
-            for ( i in 1:max(cpart) ){
-              f <- cols[cpart == i]
-              if ( length(f) > 0 ){
-                d <- object@fdata
-                if ( length(f) == 1 ){
-                  cent <- d[,f]
-                }else{
-                  if ( object@clusterpar$FUNcluster == "kmedoids" ){
-                    x <- apply(as.matrix(dist.gen(t(d[,f]),method=object@clusterpar$metric)),2,mean)
-                    cent <- d[,f[which(x == min(x))[1]]]
-                  }else{
-                  cent <- apply(d[,f],1,mean)
-                }
-                }
-                if ( flag == 1 ) dcent <- data.frame(cent) else dcent <- cbind(dcent,cent)
-                if ( flag == 1 ) tmp <- data.frame(apply(d,2,dist.gen.pairs,y=cent,method=object@clusterpar$metric)) else tmp <- cbind(tmp,apply(d,2,dist.gen.pairs,y=cent,method=object@clusterpar$metric))
-                flag <- 0
-              }
-            }
-            cpart <- apply(tmp,1,function(x) order(x,decreasing=FALSE)[1])
-
-            for  ( i in max(cpart):1){if (sum(cpart==i)==0) cpart[cpart>i] <- cpart[cpart>i] - 1 }
-
-            object@cpart <- cpart
-
-            set.seed(111111)
-            object@fcol <- sample(rainbow(max(cpart)))
-            return(object)
-          }
-        )
-
-
-setGeneric("comptsne2", function(object,rseed=15555,sammonmap=FALSE,initial_cmd=TRUE,...) standardGeneric("comptsne2"))
-
-setMethod("comptsne2",
-          signature = "SCseq",
-          definition = function(object,rseed,sammonmap,...){
-            if ( length(object@cluster$kpart) == 0 ) stop("run clustexp before comptsne")
-            set.seed(rseed)
-            di <- if ( object@clusterpar$FUNcluster == "kmedoids") as.dist(sc@distances) else dist.gen(as.matrix(object@distances))
-            if ( sammonmap ){
-              object@tsne <- as.data.frame(sammon(di,k=2)$points)
-            }else{
-#               ts <- if ( initial_cmd ) tsne(di,initial_config=cmdscale(di,k=2),...) else
-              ts <- tsne(di,k=2,...)
-              object@tsne <- as.data.frame(ts)
-            }
-            return(object)
-          }
-          )
 
 setGeneric("clustdiffgenes2", function(object,pvalue=.01) standardGeneric("clustdiffgenes2"))
 
@@ -2191,70 +2066,6 @@ compmedoids <- function(x,part,metric="pearson"){
 }
 
 
-setGeneric("clustheatmap2", function(object,final=FALSE,hmethod="single") standardGeneric("clustheatmap2"))
-
-setMethod("clustheatmap2",
-          signature = "SCseq",
-          definition = function(object,final,hmethod){
-            if ( final & length(object@cpart) == 0 ) stop("run findoutliers before clustheatmap")
-            if ( !final & length(object@cluster$kpart) == 0 ) stop("run clustexp before clustheatmap")
-            x <- object@fdata
-            part <- if ( final ) object@cpart else object@cluster$kpart
-            na <- c()
-            j <- 0
-            for ( i in 1:max(part) ){
-              if ( sum(part == i) == 0 ) next
-              j <- j + 1
-              na <- append(na,i)
-              d <- x[,part == i]
-              if ( sum(part == i) == 1 ) cent <- d else cent <- apply(d,1,mean)
-              if ( j == 1 ) tmp <- data.frame(cent) else tmp <- cbind(tmp,cent)
-            }
-            names(tmp) <- paste("cl",na,sep=".")
-            ld <- if ( object@clusterpar$FUNcluster == "kmedoids" ) dist.gen(t(tmp),method=object@clusterpar$metric) else dist.gen(as.matrix(dist.gen(t(tmp),method=object@clusterpar$metric)))
-            if ( max(part) > 1 )  cclmo <- hclust(ld,method=hmethod)$order else cclmo <- 1
-            q <- part
-            for ( i in 1:max(part) ){
-              q[part == na[cclmo[i]]] <- i
-            }
-            part <- q
-            di <-  if ( object@clusterpar$FUNcluster == "kmedoids" ) object@distances else as.data.frame( as.matrix( dist.gen(t(object@distances)) ) )
-            pto <- part[order(part,decreasing=FALSE)]
-            ptn <- c()
-            for ( i in 1:max(pto) ){ pt <- names(pto)[pto == i]; z <- if ( length(pt) == 1 ) pt else pt[hclust(as.dist(t(di[pt,pt])),method=hmethod)$order]; ptn <- append(ptn,z) }
-            col <- object@fcol
-            mi  <- min(di,na.rm=TRUE)
-            ma  <- max(di,na.rm=TRUE)
-            layout(matrix(data=c(1,3,2,4), nrow=2, ncol=2), widths=c(5,1,5,1), heights=c(5,1,1,1))
-            ColorRamp   <- colorRampPalette(brewer.pal(n = 7,name = "RdYlBu"))(100)
-            ColorLevels <- seq(mi, ma, length=length(ColorRamp))
-            if ( mi == ma ){
-              ColorLevels <- seq(0.99*mi, 1.01*ma, length=length(ColorRamp))
-            }
-            par(mar = c(3,5,2.5,2))
-            image(as.matrix(di[ptn,ptn]),col=ColorRamp,axes=FALSE)
-            abline(0,1)
-            box()
-
-            tmp <- c()
-            for ( u in 1:max(part) ){
-              ol <- (0:(length(part) - 1)/(length(part) - 1))[ptn %in% names(x)[part == u]]
-              points(rep(0,length(ol)),ol,col=col[cclmo[u]],pch=15,cex=.75)
-              points(ol,rep(0,length(ol)),col=col[cclmo[u]],pch=15,cex=.75)
-              tmp <- append(tmp,mean(ol))
-            }
-            axis(1,at=tmp,lab=cclmo)
-            axis(2,at=tmp,lab=cclmo)
-            par(mar = c(3,2.5,2.5,2))
-            image(1, ColorLevels,
-                  matrix(data=ColorLevels, ncol=length(ColorLevels),nrow=1),
-                  col=ColorRamp,
-                  xlab="",ylab="",
-                  xaxt="n")
-            layout(1)
-            return(cclmo)
-          }
-          )
 
 
 plotnetwork2 <- function(x){
