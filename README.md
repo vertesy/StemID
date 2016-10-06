@@ -54,6 +54,8 @@ Input parameters and default values are:
   + sc <- clustexp(sc, clustnr=20, bootnr=50, metric="pearson", do.gap=FALSE, sat=TRUE, SE.method="Tibs2001SEmax", SE.factor=0.25, B.gap=50, cln=0, rseed=17000, FUNcluster="kmedoids")
   + sc <- clustexp(sc) -- runs function with default values
 
+* **clustheatmap**.
+
 ## Functions
 * **downsample**. Downsamples inputdata. <br />
 Transcript data is converted to integer data and random sampling is done _dsn_ times and averaged. A peudocount equal to 0.1 is added to the resulting data.frame. 
@@ -65,11 +67,9 @@ Version 2, from RaceID2. Computes distance between cells (using dist.gen functio
 * **dist.gen**. Distance between cells. <br/>
 Computes and returns the distance matrix computed by using the specified distance (mmetric) measure to compute the distances between the cells. In case of metric "spearman", "pearson", or "kendall", the function takes 1 - correlation as a distance, and takes the direct measurement of the distance for metric "euclidean", "maximum", "manhattan", "canberra", "binary" or "minkowski".
 
-* **clusGapExt**. Clustering.
+* **clusGapExt**. Gap statistics and saturation criterion. <br/>
 
-* **clusterboot kmeansCBI**. kmeans clustering. fpc package.
-* **clusterboot with pamkCBI**. kmedoids clustering. fpc package.
-* **clusterboot with hclusterCBI**. hclust clustering. fpc package.
+
 
 
 The following files are provided:
