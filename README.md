@@ -54,7 +54,25 @@ Input parameters and default values are:
   + sc <- clustexp(sc, clustnr=20, bootnr=50, metric="pearson", do.gap=FALSE, sat=TRUE, SE.method="Tibs2001SEmax", SE.factor=0.25, B.gap=50, cln=0, rseed=17000, FUNcluster="kmedoids")
   + sc <- clustexp(sc) -- runs function with default values
 
+* **findoutliers**. Finds outliers. <br/>
+Input parameters and default values are: 
+1. _outminc=5_ ()
+2. _outlg=2_ ()
+3. _probthr=1e-3_ ()
+4. _thr=2**-(1:40)_ ()
+5. _outdistquant=.95_ ()
+6. _version = 2_ (equal to 1 or 2, depending on RaceID version) <br />
+
+hmmm
+Run as:
+
+  + sc <- sc <- findoutliers(sc, outminc=5,outlg=2,probthr=1e-3,thr=2**-(1:40), outdistquant=.95, version = 2)
+
+  + sc <- findoutliers(sc) -- runs function with default values
+  
+## Plots
 * **clustheatmap**.
+
 
 ## Functions
 * **downsample**. Downsamples inputdata. <br />
