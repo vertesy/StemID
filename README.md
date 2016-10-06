@@ -67,12 +67,26 @@ hmmm
 Run as:
 
   + sc <- sc <- findoutliers(sc, outminc=5,outlg=2,probthr=1e-3,thr=2**-(1:40), outdistquant=.95, version = 2)
-
   + sc <- findoutliers(sc) -- runs function with default values
   
+* **comptsne**. Computes tSNE map. <br/>
+Input parameters and default values are: 
+1. _rseed=15555_ (seed for random numbers)
+2. _sammonmap=FALSE_ ()
+3. _initial_cmd=TRUE_ ()
+4. _others_ () <br/>
+
+hmmm
+Run as:
+
+  + sc <- comptsne(sc, rseed = 1555, sammonmap = FALSE)
+  + sc <- comptsne(sc)
+  
+
 ## Plots
 * **clustheatmap**.
 
+* **plottsne**. 
 
 ## Functions
 * **downsample**. Downsamples inputdata. <br />
