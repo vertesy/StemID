@@ -44,7 +44,11 @@ Input parameters and default values are:
   11. _FUNcluster="kmeans"_ (incorporated in RaceID2, this can be kmeans, hclust or kmedoids. ) <br />
   
  Input parameters are stored in slot sc@clusterpar. Default is taken when no specified. <br/>
- Data in sc@fdata in clustered using clustfun functions. Results are stored in sc@cluster, sc@distances and sc@fcol. Go to _Functions_ section to learn more. <br/>
+ Data in sc@fdata in clustered using clustfun function. 
+ First, the distance bewteen cells is computed according to the metric with function dist.gen and stored in sc@distances as a matrix. 
+ Next, if required, the number of clusters is determined using either gap statistics or saturation criterion, using function clusGapExt.
+ Finally, clustering is performed using function clusterboot from fpc R package. 
+ Results are stored in sc@cluster (clb has a lot of information), and sc@fcol.  <br/>
   Run as:
 
   + sc <- clustexp(sc, clustnr=20, bootnr=50, metric="pearson", do.gap=FALSE, sat=TRUE, SE.method="Tibs2001SEmax", SE.factor=0.25, B.gap=50, cln=0, rseed=17000, FUNcluster="kmedoids")
