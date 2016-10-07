@@ -48,9 +48,14 @@ Input parameters and default values are:
  First, the distance bewteen cells is computed according to the metric with function dist.gen and stored in sc@distances as a matrix. 
  Next, if required, the number of clusters is determined using either gap statistics or saturation criterion, using function clusGapExt.
  Finally, clustering is performed using function clusterboot from fpc R package. 
- Results are stored in sc@cluster (clb has a lot of information), and sc@fcol.  <br/>
-  Run as:
-
+ Output is sotred in sc@cluster and sc@fcol:
+  + object@cluster$kpart: contains the cluster assignation of each cell before oultier detection (next step in analysis).
+  + object@cluster$jaccard
+  + object@cluster$gap
+  + object@cluster$clb
+  + object@fcol <br/>
+ 
+ Run as:
   + sc <- clustexp(sc, clustnr=20, bootnr=50, metric="pearson", do.gap=FALSE, sat=TRUE, SE.method="Tibs2001SEmax", SE.factor=0.25, B.gap=50, cln=0, rseed=17000, FUNcluster="kmedoids")
   + sc <- clustexp(sc) -- runs function with default values
 
