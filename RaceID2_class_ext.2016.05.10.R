@@ -510,6 +510,8 @@ definition = function(object,rseed,sammonmap,...){
         ts <- tsne(di,k=2,...)
         object@tsne <- as.data.frame(ts)
     }
+    if (ncol(object@fdata) != nrow(object@tsne)) stop ("number of cells in fdata does not equal number of cells in tsne")
+    rownames(object@tsne) <- colnames(object@fdata)
     return(object)
 }
 )
