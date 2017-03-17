@@ -45,7 +45,7 @@ setMethod("initialize",
           }
           )
 
-setGeneric("filterdata", function(object, mintotal=3000, minexpr=5, minnumber=1, maxexpr=Inf, downsample=TRUE, dsn=1, rseed=17000) standardGeneric("filterdata"))
+setGeneric("filterdata", function(object, mintotal=1000, minexpr=5, minnumber=1, maxexpr=Inf, downsample=FALSE, dsn=1, rseed=17000, dsversion = 'DG') standardGeneric("filterdata"))
 
 setMethod("filterdata",
           signature = "SCseq",
