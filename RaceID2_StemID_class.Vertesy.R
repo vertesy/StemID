@@ -353,64 +353,131 @@ plot.err.bars.y <- function(x, y, y.err, col="black", lwd=1, lty=1, h=0.1){
   arrows(x-h,y+y.err,x+h,y+y.err,code=0, col=col, lwd=lwd, lty=lty)
 }
 
-clusGapExt <-function (x, FUNcluster, K.max, B = 100, verbose = interactive(), method="euclidean",random=TRUE,
-    ...)
-{
-     stopifnot(is.function(FUNcluster), length(dim(x)) == 2, K.max >=
-        2, (n <- nrow(x)) >= 1, (p <- ncol(x)) >= 1)
-    if (B != (B. <- as.integer(B)) || (B <- B.) <= 0)
-        stop("'B' has to be a positive integer")
-    if (is.data.frame(x))
-        x <- as.matrix(x)
+# clusGapExt.original <-function (x, FUNcluster, K.max, B = 100, verbose = interactive(), method="euclidean",random=TRUE, ...){
+#      stopifnot(is.function(FUNcluster), length(dim(x)) == 2, K.max >=
+#         2, (n <- nrow(x)) >= 1, (p <- ncol(x)) >= 1)
+#     if (B != (B. <- as.integer(B)) || (B <- B.) <= 0)
+#         stop("'B' has to be a positive integer")
+#     if (is.data.frame(x))
+#         x <- as.matrix(x)
+#     ii <- seq_len(n)
+#     W.k <- function(X, kk) {
+#         clus <- if (kk > 1)
+#             FUNcluster(X, kk, ...)$cluster
+#         else rep.int(1L, nrow(X))
+#         0.5 * sum(vapply(split(ii, clus), function(I) {
+#             xs <- X[I, , drop = FALSE]
+#             sum(dist.gen(xs,method=method)/nrow(xs))
+#         }, 0))
+#     }
+#     logW <- E.logW <- SE.sim <- numeric(K.max)
+#     if (verbose)
+#         cat("Clustering k = 1,2,..., K.max (= ", K.max, "): .. ",
+#             sep = "")
+#     for (k in 1:K.max) logW[k] <- log(W.k(x, k))
+#     if (verbose)
+#         cat("done\n")
+#     xs <- scale(x, center = TRUE, scale = FALSE)
+#     m.x <- rep(attr(xs, "scaled:center"), each = n)
+#     V.sx <- svd(xs)$v
+#     rng.x1 <- apply(xs %*% V.sx, 2, range)
+#     logWks <- matrix(0, B, K.max)
+#      if (random){
+#        if (verbose)
+#          cat("Bootstrapping, b = 1,2,..., B (= ", B, ")  [one \".\" per sample]:\n",
+#              sep = "")
+#        for (b in 1:B) {
+#          z1 <- apply(rng.x1, 2, function(M, nn) runif(nn, min = M[1],
+#              max = M[2]), nn = n)
+#          z <- tcrossprod(z1, V.sx) + m.x
+#          ##z <- apply(x,2,function(m) runif(length(m),min=min(m),max=max(m)))
+#          ##z <- apply(x,2,function(m) sample(m))
+#          for (k in 1:K.max) {
+#            logWks[b, k] <- log(W.k(z, k))
+#          }
+#          if (verbose)
+#            cat(".", if (b%%50 == 0)
+#                paste(b, "\n"))
+#        }
+#        if (verbose && (B%%50 != 0))
+#          cat("", B, "\n")
+#        E.logW <- colMeans(logWks)
+#        SE.sim <- sqrt((1 + 1/B) * apply(logWks, 2, var))
+#      }else{
+#        E.logW <- rep(NA,K.max)
+#        SE.sim <- rep(NA,K.max)
+#      }
+#     structure(class = "clusGap", list(Tab = cbind(logW, E.logW,
+#         gap = E.logW - logW, SE.sim), n = n, B = B, FUNcluster = FUNcluster))
+# }
+
+clusGapExt <-function (x, FUNcluster, K.max, B = 100, verbose = interactive(), method="euclidean",random=TRUE, ParAbelClust =F, ParAbelBoot = T, ...) {
+     stopifnot(is.function(FUNcluster), length(dim(x)) == 2, K.max >= 2, (n <- nrow(x)) >= 1, (p <- ncol(x)) >= 1)
+	print("To use parallel functions, you should setup parallel backend to use e.g. processors: library(doParallel); registerDoParallel(makeCluster(7)) ")
+	print("You should also specify the variable RaceIDpath to your RaceID-class file.")
+
+    if (B != (B. <- as.integer(B)) || (B <- B.) <= 0) {stop("'B' has to be a positive integer")}
+    if (is.data.frame(x)) { x <- as.matrix(x) }
     ii <- seq_len(n)
     W.k <- function(X, kk) {
-        clus <- if (kk > 1)
-            FUNcluster(X, kk, ...)$cluster
+        clus <- if (kk > 1) {FUNcluster(X, kk, ...)$cluster}
         else rep.int(1L, nrow(X))
         0.5 * sum(vapply(split(ii, clus), function(I) {
             xs <- X[I, , drop = FALSE]
             sum(dist.gen(xs,method=method)/nrow(xs))
         }, 0))
     }
+
     logW <- E.logW <- SE.sim <- numeric(K.max)
-    if (verbose)
-        cat("Clustering k = 1,2,..., K.max (= ", K.max, "): .. ",
-            sep = "")
-    for (k in 1:K.max) logW[k] <- log(W.k(x, k))
-    if (verbose)
-        cat("done\n")
+    if (verbose) {cat("Clustering k = 1,2,..., K.max (= ", K.max, "): .. ", sep = "")}
+    start.time <- Sys.time()
+    if(ParAbelClust) {	print("Abel Style - parallel Clustering")
+		logW <- as.numeric(foreach(k = 1:K.max) %dopar% {
+			source(RaceIDpath)
+			log(W.k(x, k))
+		})
+    } else {	print("classical")
+    	for (k in 1:K.max) logW[k] <- log(W.k(x, k))
+    }
+    print(Sys.time() - start.time)
+    if (verbose) cat("     Clustering is done\n")
+
     xs <- scale(x, center = TRUE, scale = FALSE)
     m.x <- rep(attr(xs, "scaled:center"), each = n)
     V.sx <- svd(xs)$v
     rng.x1 <- apply(xs %*% V.sx, 2, range)
     logWks <- matrix(0, B, K.max)
      if (random){
-       if (verbose)
-         cat("Bootstrapping, b = 1,2,..., B (= ", B, ")  [one \".\" per sample]:\n",
-             sep = "")
-       for (b in 1:B) {
-         z1 <- apply(rng.x1, 2, function(M, nn) runif(nn, min = M[1],
-             max = M[2]), nn = n)
-         z <- tcrossprod(z1, V.sx) + m.x
-         ##z <- apply(x,2,function(m) runif(length(m),min=min(m),max=max(m)))
-         ##z <- apply(x,2,function(m) sample(m))
-         for (k in 1:K.max) {
-           logWks[b, k] <- log(W.k(z, k))
-         }
-         if (verbose)
-           cat(".", if (b%%50 == 0)
-               paste(b, "\n"))
-       }
-       if (verbose && (B%%50 != 0))
-         cat("", B, "\n")
+       if (verbose) {cat("Bootstrapping, b = 1,2,..., B (= ", B, ")  [one \".\" per sample]:\n", sep = "")}
+       		if(ParAbelBoot) { print("Abel Style - parallel Bootstrapping")
+				z.ls <- foreach(icount(B)) %dopar% {
+					source(RaceIDpath)
+					tcrossprod(apply(rng.x1, 2, function(M, nn) runif(nn, min = M[1], max = M[2]), nn = n), V.sx) + m.x
+				}
+				print(Sys.time()- start.time)
+				start.time <- Sys.time()
+				print("     z and z1 are calculated")
+				ls_logWks <- foreach(k = 1:K.max) %dopar% { unlist(lapply(z.ls, function(x) log(W.k(x,k) ) ) ) }
+				logWks = data.matrix(do.call(cbind.data.frame, ls_logWks))
+				print("     logWks is calculated")
+			} else { # Dominic Style
+				for (b in 1:B) {
+				z1 <- apply(rng.x1, 2, function(M, nn) runif(nn, min = M[1], max = M[2]), nn = n)
+				z <- tcrossprod(z1, V.sx) + m.x
+				for (k in 1:K.max) { logWks[b, k] <- log(W.k(z, k)) }
+				if (verbose) {cat(".", if (b%%50 == 0) paste(b, "\n"))}
+			}
+		}
+
+       if (verbose && (B%%50 != 0)) {cat("", B, "\n")}
        E.logW <- colMeans(logWks)
        SE.sim <- sqrt((1 + 1/B) * apply(logWks, 2, var))
-     }else{
+     }else{ #random
        E.logW <- rep(NA,K.max)
        SE.sim <- rep(NA,K.max)
      }
-    structure(class = "clusGap", list(Tab = cbind(logW, E.logW,
-        gap = E.logW - logW, SE.sim), n = n, B = B, FUNcluster = FUNcluster))
+    print(Sys.time()- start.time)
+    structure(class = "clusGap", list(Tab = cbind(logW, E.logW, gap = E.logW - logW, SE.sim), n = n, B = B, FUNcluster = FUNcluster))
 }
 
 clustfun <- function(x,clustnr=20,bootnr=50,metric="pearson",do.gap=FALSE,sat=TRUE,SE.method="Tibs2001SEmax",SE.factor=.25,B.gap=50,cln=0,rseed=17000,FUNcluster="kmedoids",distances=NULL,link="single")
