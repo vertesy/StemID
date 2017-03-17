@@ -72,29 +72,45 @@ setMethod("filterdata",
           }
           )
 
-downsample <- function(x,n,dsn){
-  x <- round( x[,apply(x,2,sum,na.rm=TRUE) >= n], 0)
-  nn <- min( apply(x,2,sum) )
-  for ( j in 1:dsn ){
-    z  <- data.frame(GENEID=rownames(x))
-    rownames(z) <- rownames(x)
-    initv <- rep(0,nrow(z))
-    for ( i in 1:dim(x)[2] ){
-      y <- aggregate(rep(1,nn),list(sample(rep(rownames(x),x[,i]),nn)),sum)
-      na <- names(x)[i]
-      names(y) <- c("GENEID",na)
-      rownames(y) <- y$GENEID
-      z[,na] <- initv
-      k <- intersect(rownames(z),y$GENEID)
-      z[k,na] <- y[k,na]
-      z[is.na(z[,na]),na] <- 0
+downsample <- function(x, n, dsn, dsversion){
+    if (dsversion == "DG") {  # Dominic's downsampler
+        x <- round(x,0)
+        x <- x[apply(x,2,sum,na.rm=TRUE) >= n]
+        for ( j in 1:dsn ){
+            z  <- data.frame(GENEID=rownames(x), row.names = rownames(x))
+            for ( i in 1:ncol(x) ){
+                y <- aggregate(rep(1,n), by = list(sample(rep(rownames(x),x[,i]),n)), FUN = sum)
+                na <- colnames(x[i])
+                colnames(y) <- c("GENEID", na)
+                rownames(y) <- y$GENEID
+                z[,na] <- rep(0,nrow(z))
+                k <- intersect(rownames(z),y$GENEID)
+                z[k,na] <- y[k,na]
+                z[is.na(z[,na]),na] <- 0
+            }
+            ds <- if ( j == 1 ) z[,-1] else ds + z[,-1]
+        }
+        ds <- ds/dsn + .1
+
+    } else if (dsversion == "JCB") {  # Jean-Charles' downsampler
+        rnd <- round(x, 0)
+        rnd <- rnd[, which(colSums(rnd) >= n), drop = FALSE]
+        ds <- rnd
+        ds[,] = 0
+        pool <- vector(mode = 'list', length = ncol(rnd))
+        for (i in 1:ncol(rnd)){pool[[i]] <- rnd[rnd[,i]!=0,i,drop=FALSE]}
+        for (j in 1: dsn) {
+            poollists <- lapply(pool, function(y){table(sample(rep(row.names(y),y[,1]), size =
+                n,replace = FALSE))})
+            for (i in 1:ncol(rnd)){
+                ds[match(names(poollists[[i]]),rownames(rnd)),i] <- as.numeric(poollists[[i]]) + ds[match(names(poollists[[i]]),rownames(rnd)),i]
+            }
+        }
+        ds <- ds/dsn + .1
     }
-    rownames(z) <- as.vector(z$GENEID)
-    ds <- if ( j == 1 ) z[,-1] else ds + z[,-1]
-  }
-  ds <- ds/dsn + .1
-  return(ds)
+    return(ds)
 }
+
 
 dist.gen <- function(x,method="euclidean", ...) if ( method %in% c("spearman","pearson","kendall") ) as.dist( 1 - cor(t(x),method=method,...) ) else dist(x,method=method,...)
 
