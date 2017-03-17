@@ -1720,3 +1720,12 @@ fix_kpart <- function (sc_obj=sc, bytSNEdim=1, outlier=F){ # old_kpart if using 
   # if (outlier) { assign("sc@cpart", New_kpart, envir = .GlobalEnv)
   # } else {       assign("sc@cluster$kpart", New_kpart, envir = .GlobalEnv) }
 }
+
+
+plot.2.file <- function(name, type="pdf", res.f=1){
+  full.name <- paste(name,type,sep=".")
+  if (type == "pdf"){ 		 pdf(full.name)
+  }else if(type == "png"){	 png(full.name,width = 480*res.f, height = 480*res.f, pointsize = 12*res.f)
+  }else if (type == "tiff"){ tiff(full.name,width = 480*res.f, height = 480*res.f, pointsize = 12*res.f)
+  }else if (type == "jpeg"){ jpeg(full.name,width = 480*res.f, height = 480*res.f, pointsize = 12*res.f) }
+}
