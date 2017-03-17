@@ -246,9 +246,9 @@ plotdiffgenes <- function(z,gene=g){
   abline(v=length(x) + .5)
 }
 
-setGeneric("plottsne", function(object,final=TRUE) standardGeneric("plottsne"))
+setGeneric("plottsne.original", function(object,final=TRUE) standardGeneric("plottsne.original"))
 
-setMethod("plottsne",
+setMethod("plottsne.original",
           signature = "SCseq",
           definition = function(object,final){
             if ( length(object@tsne) == 0 ) stop("run comptsne before plottsne")
@@ -1490,3 +1490,24 @@ setMethod("plotlabelstsne",
 )
 
 
+#Abels version of plottsne3 - better graphics and you can change the colors
+setGeneric("plottsne", function(object,final=F, coll=object@fcol) standardGeneric("plottsne3"))
+
+setMethod("plottsne",
+          signature = "SCseq",
+          definition = function(object, final,coll){
+            if ( length(object@tsne) == 0 ) stop("run comptsne before plottsne")
+            if ( final & length(object@cpart) == 0 ) stop("run findoutliers before plottsne")
+            if ( !final & length(object@cluster$kpart) == 0 ) stop("run clustexp before plottsne")
+            part <- if ( final ) object@cpart else object@cluster$kpart
+            xrange <- 0.05*(max(object@tsne[,1]) - min(object@tsne[,1]))
+            yrange <- 0.05*(max(object@tsne[,2]) - min(object@tsne[,2]))
+            plot(sc@tsne,cex=2.5,col='lightgrey',pch=20,ylim=c(min(object@tsne[,2])-yrange,max(object@tsne[,2])+yrange),xlim=c(min(object@tsne[,1])-xrange,max(object@tsne[,1])+xrange))
+            for ( i in 1:max(part) ){
+              if ( sum(part == i) > 0 ) points(sc@tsne[part == i,1],sc@tsne[part == i,2],col=coll[i],cex=2,pch=20)
+            }
+            for ( i in 1:max(part) ){
+              if ( sum(part == i) > 0 ) text(sc@tsne[part == i,1], sc@tsne[part == i,2], i, font=4,cex=0.5)
+            }
+          }
+)
