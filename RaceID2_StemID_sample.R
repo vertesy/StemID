@@ -1,14 +1,24 @@
 ## install required packages (only at first time)
 install.packages(c("tsne","pheatmap","MASS","cluster","mclust","flexmix","lattice","fpc","RColorBrewer","permute","amap","locfit","vegan"))
 
+
+# Currently, for parallel computing, you have to specify the path to RaceID2_StemID_class.Vertesy.R inside itself
+# Set ParAbelClust = T and ParAbelBoot = T,
+# - Specify the path to RaceID2_StemID_class.Vertesy.R inside itself
+library(doParallel)
+registerDoParallel(makeCluster(4)) # # setup parallel backend to use 6 processors
+
+
 ## load class definition and functions
-source("RaceID2_StemID_class.R")
+source("RaceID2_StemID_class.Vertesy.R")
 
 ## input data
 x <- read.csv("transcript_counts_intestine_5days_YFP.xls",sep="\t",header=TRUE)
 rownames(x) <- x$GENEID
-# prdata: data.frame with transcript counts for all genes (rows) in all cells (columns); with rownames == gene ids; remove ERCC spike-ins 
+# prdata: data.frame with transcript counts for all genes (rows) in all cells (columns); with rownames == gene ids; remove ERCC spike-ins
 prdata <- x[grep("ERCC",rownames(x),invert=TRUE),-1]
+
+
 
 ## RaceID2
 # initialize SCseq object with transcript counts
@@ -60,10 +70,10 @@ plotexptsne(sc,g,n="Apoa genes",logsc=TRUE)
 cdiff <- clustdiffgenes(sc,pvalue=.01)
 
 ## write results to text files
-# final clusters 
+# final clusters
 x <- data.frame(CELLID=names(sc@cpart),cluster=sc@cpart)
 write.table(x[order(x$cluster,decreasing=FALSE),],"cell_clust.xls",row.names=FALSE,col.names=TRUE,sep="\t",quote=FALSE)
-  
+
 # differentially expressed genes in cluster
 for ( n in names(cdiff) ) write.table(data.frame(GENEID=rownames(cdiff[[n]]),cdiff[[n]]),paste(paste("cell_clust_diff_genes",sub("\\.","\\_",n),sep="_"),".xls",sep=""),row.names=FALSE,col.names=TRUE,sep="\t",quote=FALSE)
 
@@ -125,4 +135,4 @@ x <- compscore(ltr,nn=1)
 #plotting the StemID score
 plotscore(ltr,1)
 
- 
+

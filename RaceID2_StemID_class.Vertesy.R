@@ -12,6 +12,7 @@ require(RColorBrewer)
 require(locfit)
 require(vegan)
 
+
 ## class definition
 SCseq <- setClass("SCseq", slots = c(expdata = "data.frame", ndata = "data.frame", fdata = "data.frame", distances = "matrix", tsne = "data.frame", cluster = "list", background = "list", out = "list", cpart = "vector", fcol = "vector", filterpar = "list", clusterpar = "list", outlierpar ="list" ))
 
@@ -411,10 +412,10 @@ plot.err.bars.y <- function(x, y, y.err, col="black", lwd=1, lty=1, h=0.1){
 #         gap = E.logW - logW, SE.sim), n = n, B = B, FUNcluster = FUNcluster))
 # }
 
-clusGapExt <-function (x, FUNcluster, K.max, B = 100, verbose = interactive(), method="euclidean",random=TRUE, ParAbelClust =F, ParAbelBoot = T, ...) {
-     stopifnot(is.function(FUNcluster), length(dim(x)) == 2, K.max >= 2, (n <- nrow(x)) >= 1, (p <- ncol(x)) >= 1)
+clusGapExt <-function (x, FUNcluster, K.max, B = 100, verbose = interactive(), method="euclidean",random=TRUE, ParAbelClust =T, ParAbelBoot = T, ...) {
+	stopifnot(is.function(FUNcluster), length(dim(x)) == 2, K.max >= 2, (n <- nrow(x)) >= 1, (p <- ncol(x)) >= 1)
 	print("To use parallel functions, you should setup parallel backend to use e.g. processors: library(doParallel); registerDoParallel(makeCluster(4))")
-	print("THIS WILL BE MEMORY HEAVY - CLOSE ALL UNNECESSARY APPLICATIONS")
+	print("THIS COULD BE MEMORY HEAVY - CLOSE ALL UNNECESSARY APPLICATIONS")
 	print("You should also specify the variable RaceIDpath to your RaceID-class file.")
 
     if (B != (B. <- as.integer(B)) || (B <- B.) <= 0) {stop("'B' has to be a positive integer")}
@@ -434,7 +435,8 @@ clusGapExt <-function (x, FUNcluster, K.max, B = 100, verbose = interactive(), m
     start.time <- Sys.time()
     if(ParAbelClust) {	print("Abel Style - parallel Clustering")
 		logW <- as.numeric(foreach(k = 1:K.max) %dopar% {
-			source(RaceIDpath)
+			# source(RaceIDpath)
+			source("/Users/abelvertesy/Github_repos/RaceID2.parallel.computing/RaceID2_StemID_class.Vertesy.R")
 			log(W.k(x, k))
 		})
     } else {	print("classical")
@@ -452,7 +454,8 @@ clusGapExt <-function (x, FUNcluster, K.max, B = 100, verbose = interactive(), m
        if (verbose) {cat("Bootstrapping, b = 1,2,..., B (= ", B, ")  [one \".\" per sample]:\n", sep = "")}
        		if(ParAbelBoot) { print("Abel Style - parallel Bootstrapping")
 				z.ls <- foreach(icount(B)) %dopar% {
-					source(RaceIDpath)
+					# source(RaceIDpath)
+					source("/Users/abelvertesy/Github_repos/RaceID2.parallel.computing/RaceID2_StemID_class.Vertesy.R")
 					tcrossprod(apply(rng.x1, 2, function(M, nn) runif(nn, min = M[1], max = M[2]), nn = n), V.sx) + m.x
 				}
 				print(Sys.time()- start.time)
@@ -480,6 +483,7 @@ clusGapExt <-function (x, FUNcluster, K.max, B = 100, verbose = interactive(), m
     print(Sys.time()- start.time)
     structure(class = "clusGap", list(Tab = cbind(logW, E.logW, gap = E.logW - logW, SE.sim), n = n, B = B, FUNcluster = FUNcluster))
 }
+
 
 clustfun <- function(x,clustnr=20,bootnr=50,metric="pearson",do.gap=FALSE,sat=TRUE,SE.method="Tibs2001SEmax",SE.factor=.25,B.gap=50,cln=0,rseed=17000,FUNcluster="kmedoids",distances=NULL,link="single")
 {
@@ -1571,8 +1575,8 @@ setMethod("plotlabelstsne",
 )
 
 
-#Abels version of plottsne3 - better graphics and you can change the colors
-setGeneric("plottsne", function(object,final=F, coll=object@fcol) standardGeneric("plottsne3"))
+#Abels version of plottsne - better graphics and you can change the colors
+setGeneric("plottsne", function(object,final=F, coll=object@fcol) standardGeneric("plottsne"))
 
 setMethod("plottsne",
           signature = "SCseq",
@@ -1594,7 +1598,7 @@ setMethod("plottsne",
 )
 
 
-
+# Differential gene expression analysis
 diffexpnb <- function(x, cells_of_interest, cells_background ,norm=TRUE,DESeq=FALSE,method="per-condition",vfit=NULL,locreg=FALSE){
   if ( ! method %in% c("per-condition","pooled","pooled-CR") ) stop("invalid method")
   x <- x[,c(cells_background,cells_of_interest)]
