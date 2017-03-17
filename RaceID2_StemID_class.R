@@ -197,7 +197,7 @@ setMethod("diffgenes",
             if ( sum(part %in% cl2) == 1 ) m2 <- y else m2 <- apply(y,1,mean)
             if ( sum(part %in% cl1) == 1 ) s1 <- sqrt(x) else s1 <- sqrt(apply(x,1,var))
             if ( sum(part %in% cl2) == 1 ) s2 <- sqrt(y) else s2 <- sqrt(apply(y,1,var))
-            
+
             d <- ( m1 - m2 )/ apply( cbind( s1, s2 ),1,mean )
             names(d) <- rownames(object@ndata)[f]
             if ( sum(part %in% cl1) == 1 ){
@@ -235,7 +235,7 @@ plotdiffgenes <- function(z,gene=g){
   lines(v,rep(mean(x),length(v)))
   lines(v,rep(mean(x)-sqrt(var(x)),length(v)),lty=2)
   lines(v,rep(mean(x)+sqrt(var(x)),length(v)),lty=2)
-  
+
   u <- ( length(x) + 1 ):length(c(x,y))
   v <- c(min(u) - .5,max(u) + .5)
   rect(u - .5,0,u + .5,y,col="blue")
@@ -338,17 +338,17 @@ plot.err.bars.y <- function(x, y, y.err, col="black", lwd=1, lty=1, h=0.1){
 }
 
 clusGapExt <-function (x, FUNcluster, K.max, B = 100, verbose = interactive(), method="euclidean",random=TRUE,
-    ...) 
+    ...)
 {
-     stopifnot(is.function(FUNcluster), length(dim(x)) == 2, K.max >= 
+     stopifnot(is.function(FUNcluster), length(dim(x)) == 2, K.max >=
         2, (n <- nrow(x)) >= 1, (p <- ncol(x)) >= 1)
-    if (B != (B. <- as.integer(B)) || (B <- B.) <= 0) 
+    if (B != (B. <- as.integer(B)) || (B <- B.) <= 0)
         stop("'B' has to be a positive integer")
-    if (is.data.frame(x)) 
+    if (is.data.frame(x))
         x <- as.matrix(x)
     ii <- seq_len(n)
     W.k <- function(X, kk) {
-        clus <- if (kk > 1) 
+        clus <- if (kk > 1)
             FUNcluster(X, kk, ...)$cluster
         else rep.int(1L, nrow(X))
         0.5 * sum(vapply(split(ii, clus), function(I) {
@@ -357,11 +357,11 @@ clusGapExt <-function (x, FUNcluster, K.max, B = 100, verbose = interactive(), m
         }, 0))
     }
     logW <- E.logW <- SE.sim <- numeric(K.max)
-    if (verbose) 
-        cat("Clustering k = 1,2,..., K.max (= ", K.max, "): .. ", 
+    if (verbose)
+        cat("Clustering k = 1,2,..., K.max (= ", K.max, "): .. ",
             sep = "")
     for (k in 1:K.max) logW[k] <- log(W.k(x, k))
-    if (verbose) 
+    if (verbose)
         cat("done\n")
     xs <- scale(x, center = TRUE, scale = FALSE)
     m.x <- rep(attr(xs, "scaled:center"), each = n)
@@ -369,11 +369,11 @@ clusGapExt <-function (x, FUNcluster, K.max, B = 100, verbose = interactive(), m
     rng.x1 <- apply(xs %*% V.sx, 2, range)
     logWks <- matrix(0, B, K.max)
      if (random){
-       if (verbose) 
-         cat("Bootstrapping, b = 1,2,..., B (= ", B, ")  [one \".\" per sample]:\n", 
+       if (verbose)
+         cat("Bootstrapping, b = 1,2,..., B (= ", B, ")  [one \".\" per sample]:\n",
              sep = "")
        for (b in 1:B) {
-         z1 <- apply(rng.x1, 2, function(M, nn) runif(nn, min = M[1], 
+         z1 <- apply(rng.x1, 2, function(M, nn) runif(nn, min = M[1],
              max = M[2]), nn = n)
          z <- tcrossprod(z1, V.sx) + m.x
          ##z <- apply(x,2,function(m) runif(length(m),min=min(m),max=max(m)))
@@ -381,11 +381,11 @@ clusGapExt <-function (x, FUNcluster, K.max, B = 100, verbose = interactive(), m
          for (k in 1:K.max) {
            logWks[b, k] <- log(W.k(z, k))
          }
-         if (verbose) 
-           cat(".", if (b%%50 == 0) 
+         if (verbose)
+           cat(".", if (b%%50 == 0)
                paste(b, "\n"))
        }
-       if (verbose && (B%%50 != 0)) 
+       if (verbose && (B%%50 != 0))
          cat("", B, "\n")
        E.logW <- colMeans(logWks)
        SE.sim <- sqrt((1 + 1/B) * apply(logWks, 2, var))
@@ -393,7 +393,7 @@ clusGapExt <-function (x, FUNcluster, K.max, B = 100, verbose = interactive(), m
        E.logW <- rep(NA,K.max)
        SE.sim <- rep(NA,K.max)
      }
-    structure(class = "clusGap", list(Tab = cbind(logW, E.logW, 
+    structure(class = "clusGap", list(Tab = cbind(logW, E.logW,
         gap = E.logW - logW, SE.sim), n = n, B = B, FUNcluster = FUNcluster))
 }
 
@@ -409,7 +409,7 @@ clustfun <- function(x,clustnr=20,bootnr=50,metric="pearson",do.gap=FALSE,sat=TR
       set.seed(rseed)
       if ( FUNcluster == "kmeans" )   gpr <- clusGapExt(as.matrix(di), FUN = kmeans, K.max = clustnr, B = B.gap, iter.max=100)
       if ( FUNcluster == "kmedoids" ) gpr <- clusGapExt(as.matrix(di), FUN = function(x,k) pam(dist.gen(x,method=metric),k), K.max = clustnr, B = B.gap, method=metric)
-      if ( FUNcluster == "hclust" )   gpr <- clusGapExt(as.matrix(di), FUN = function(x,k){ y <- hclusterCBI(x,k,link=link,scaling=FALSE); y$cluster <- y$partition; y }, K.max = clustnr, B = B.gap) 
+      if ( FUNcluster == "hclust" )   gpr <- clusGapExt(as.matrix(di), FUN = function(x,k){ y <- hclusterCBI(x,k,link=link,scaling=FALSE); y$cluster <- y$partition; y }, K.max = clustnr, B = B.gap)
       if ( f ) cln <- maxSE(gpr$Tab[,3],gpr$Tab[,4],method=SE.method,SE.factor)
     }
     if ( sat ){
@@ -423,7 +423,7 @@ clustfun <- function(x,clustnr=20,bootnr=50,metric="pearson",do.gap=FALSE,sat=TR
       mm <- numeric(length(y))
       nn <- numeric(length(y))
       for ( i in 1:length(y)){
-        mm[i] <- mean(y[i:length(y)]) 
+        mm[i] <- mean(y[i:length(y)])
         nn[i] <- sqrt(var(y[i:length(y)]))
       }
       if ( f ) cln <- max(min(which( y - (mm + nn) < 0 )),1)
@@ -453,10 +453,10 @@ setMethod("clustexp",
             if ( ! ( is.numeric(do.gap) | is.logical(do.gap) ) ) stop( "do.gap has to be logical (TRUE/FALSE)" )
             if ( ! ( is.numeric(sat) | is.logical(sat) ) ) stop( "sat has to be logical (TRUE/FALSE)" )
             if ( ! is.numeric(B.gap) ) stop("B.gap has to be a positive integer") else if ( round(B.gap) != B.gap | B.gap <= 0 ) stop("B.gap has to be a positive integer")
-            if ( ! is.numeric(cln) ) stop("cln has to be a non-negative integer") else if ( round(cln) != cln | cln < 0 ) stop("cln has to be a non-negative integer")          
+            if ( ! is.numeric(cln) ) stop("cln has to be a non-negative integer") else if ( round(cln) != cln | cln < 0 ) stop("cln has to be a non-negative integer")
             if ( ! is.numeric(rseed) ) stop("rseed has to be numeric")
             if ( !do.gap & !sat & cln == 0 ) stop("cln has to be a positive integer or either do.gap or sat has to be TRUE")
-            if ( ! ( FUNcluster %in% c("kmeans","hclust","kmedoids") ) ) stop("FUNcluster has to be one of the following: kmeans, hclust,kmedoids") 
+            if ( ! ( FUNcluster %in% c("kmeans","hclust","kmedoids") ) ) stop("FUNcluster has to be one of the following: kmeans, hclust,kmedoids")
             object@clusterpar <- list(clustnr=clustnr,bootnr=bootnr,metric=metric,do.gap=do.gap,sat=sat,SE.method=SE.method,SE.factor=SE.factor,B.gap=B.gap,cln=cln,rseed=rseed,FUNcluster=FUNcluster)
             y <- clustfun(object@fdata,clustnr,bootnr,metric,do.gap,sat,SE.method,SE.factor,B.gap,cln,rseed,FUNcluster)
             object@cluster   <- list(kpart=y$clb$result$partition, jaccard=y$clb$bootmean, gap=y$gpr, clb=y$clb)
@@ -478,7 +478,7 @@ setMethod("findoutliers",
             if ( ! is.numeric(probthr) ) stop("probthr has to be a number between 0 and 1") else if (  probthr < 0 | probthr > 1 ) stop("probthr has to be a number between 0 and 1")
             if ( ! is.numeric(thr) ) stop("thr hast to be a vector of numbers between 0 and 1") else if ( min(thr) < 0 | max(thr) > 1 ) stop("thr hast to be a vector of numbers between 0 and 1")
             if ( ! is.numeric(outdistquant) ) stop("outdistquant has to be a number between 0 and 1") else if (  outdistquant < 0 | outdistquant > 1 ) stop("outdistquant has to be a number between 0 and 1")
-            
+
             object@outlierpar <- list( outminc=outminc,outlg=outlg,probthr=probthr,thr=thr,outdistquant=outdistquant )
             ### calibrate background model
             m <- log2(apply(object@fdata,1,mean))
@@ -488,7 +488,7 @@ setMethod("findoutliers",
             v <- v[f]
             mm <- -8
             repeat{
-              fit <- lm(v ~ m + I(m^2)) 
+              fit <- lm(v ~ m + I(m^2))
               if( coef(fit)[3] >= 0 | mm >= -1){
                 break
               }
@@ -506,7 +506,7 @@ setMethod("findoutliers",
             out   <- c()
             stest <- rep(0,length(thr))
             cprobs <- c()
-            for ( n in 1:max(object@cluster$kpart) ){     
+            for ( n in 1:max(object@cluster$kpart) ){
               if ( sum(object@cluster$kpart == n) == 1 ){ cprobs <- append(cprobs,.5); names(cprobs)[length(cprobs)] <- names(object@cluster$kpart)[object@cluster$kpart == n]; next }
               x <- object@fdata[,object@cluster$kpart == n]
               x <- x[apply(x,1,max) > outminc,]
@@ -515,7 +515,7 @@ setMethod("findoutliers",
               f <- cp < probthr
               cprobs <- append(cprobs,cp)
               if ( sum(f) > 0 ) out <- append(out,names(x)[f])
-              for ( j in 1:length(thr) )  stest[j] <-  stest[j] + sum( cp < thr[j] )  
+              for ( j in 1:length(thr) )  stest[j] <-  stest[j] + sum( cp < thr[j] )
             }
             object@out <-list(out=out,stest=stest,thr=thr,cprobs=cprobs)
 
@@ -529,7 +529,7 @@ setMethod("findoutliers",
               if ( sum(!(tcol %in% out)) > 1 ) clp2p.cl <- append(clp2p.cl,as.vector(t(di[tcol[!(tcol %in% out)],tcol[!(tcol %in% out)]])))
             }
             clp2p.cl <- clp2p.cl[clp2p.cl>0]
-              
+
             cadd  <- list()
             if ( length(out) > 0 ){
               if (length(out) == 1){
@@ -537,28 +537,28 @@ setMethod("findoutliers",
               }else{
                 n <- out
                 m <- as.data.frame(di[out,out])
-                
+
                 for ( i in 1:length(out) ){
                   if ( length(n) > 1 ){
                     o   <- order(apply(cbind(m,1:dim(m)[1]),1,function(x)  min(x[1:(length(x)-1)][-x[length(x)]])),decreasing=FALSE)
                     m <- m[o,o]
-                    n <- n[o]          
+                    n <- n[o]
                     f <- m[,1] < quantile(clp2p.cl,outdistquant) | m[,1] == min(clp2p.cl)
-                    ind <- 1  
+                    ind <- 1
                     if ( sum(f) > 1 ) for ( j in 2:sum(f) ) if ( apply(m[f,f][j,c(ind,j)] > quantile(clp2p.cl,outdistquant) ,1,sum) == 0 ) ind <- append(ind,j)
                     cadd[[i]] <- n[f][ind]
                     g <- ! n %in% n[f][ind]
                     n <- n[g]
                     m <- m[g,g]
                     if ( sum(g) == 0 ) break
-          
+
                   }else if (length(n) == 1){
                     cadd[[i]] <- n
                     break
                   }
                 }
               }
-    
+
               for ( i in 1:length(cadd) ){
                 cpart[cols %in% cadd[[i]]] <- max(cpart) + 1
               }
@@ -583,7 +583,7 @@ setMethod("findoutliers",
               if ( i == 1 ) tmp <- data.frame(apply(d,2,dist.gen.pairs,y=cent,method=object@clusterpar$metric)) else tmp <- cbind(tmp,apply(d,2,dist.gen.pairs,y=cent,method=object@clusterpar$metric))
             }
             cpart <- apply(tmp,1,function(x) order(x,decreasing=FALSE)[1])
-            
+
             for  ( i in max(cpart):1){if (sum(cpart==i)==0) cpart[cpart>i] <- cpart[cpart>i] - 1 }
 
             object@cpart <- cpart
@@ -650,7 +650,7 @@ setMethod("plotsaturation",
             mm <- numeric(length(y))
             nn <- numeric(length(y))
             for ( i in 1:length(y)){
-              mm[i] <- mean(y[i:length(y)]) 
+              mm[i] <- mean(y[i:length(y)])
               nn[i] <- sqrt(var(y[i:length(y)]))
             }
             cln <- max(min(which( y - (mm + nn) < 0 )),1)
@@ -706,7 +706,7 @@ setMethod("clustheatmap",
           definition = function(object,final,hmethod){
             if ( final & length(object@cpart) == 0 ) stop("run findoutliers before clustheatmap")
             if ( !final & length(object@cluster$kpart) == 0 ) stop("run clustexp before clustheatmap")
-            x <- object@fdata  
+            x <- object@fdata
             part <- if ( final ) object@cpart else object@cluster$kpart
             na <- c()
             j <- 0
@@ -743,7 +743,7 @@ setMethod("clustheatmap",
             image(as.matrix(di[ptn,ptn]),col=ColorRamp,axes=FALSE)
             abline(0,1)
             box()
-            
+
             tmp <- c()
             for ( u in 1:max(part) ){
               ol <- (0:(length(part) - 1)/(length(part) - 1))[ptn %in% names(x)[part == u]]
@@ -800,7 +800,7 @@ setMethod("compentropy",
             probs   <- t(t(object@sc@ndata)/apply(object@sc@ndata,2,sum))
             object@entropy <- -apply(probs*log(probs)/log(nrow(object@sc@ndata)),2,sum)
             return(object)
-          }            
+          }
           )
 
 
@@ -809,7 +809,7 @@ compproj <- function(pdiloc,lploc,cnloc,mloc,d=NULL){
   k     <- paste("X",sort(rep(1:nrow(pdiloc),length(mloc))),sep="")
   pd$k  <- paste("X",1:nrow(pdiloc),sep="")
   pd    <- merge(data.frame(k=k),pd,by="k")
- 
+
   if ( is.null(d) ){
     cnv   <- t(matrix(rep(t(cnloc),nrow(pdiloc)),nrow=ncol(pdiloc)))
     pdcl  <- paste("X",lploc[as.numeric(sub("X","",pd$k))],sep="")
@@ -821,12 +821,12 @@ compproj <- function(pdiloc,lploc,cnloc,mloc,d=NULL){
     pdcn <- d$pdcn
   }
   w <- pd[,names(pd) != "k"] - pdcn
-  
+
   h <- apply(cbind(v,w),1,function(x){
     x1 <- x[1:(length(x)/2)];
     x2 <- x[(length(x)/2 + 1):length(x)];
-    x1s <- sqrt(sum(x1**2)); x2s <- sqrt(sum(x2**2)); y <- sum(x1*x2)/x1s/x2s; return( if (x1s == 0 | x2s == 0 ) NA else y ) }) 
-  
+    x1s <- sqrt(sum(x1**2)); x2s <- sqrt(sum(x2**2)); y <- sum(x1*x2)/x1s/x2s; return( if (x1s == 0 | x2s == 0 ) NA else y ) })
+
   rma <- as.data.frame(matrix(h,ncol=nrow(pdiloc)))
   names(rma) <- unique(pd$k)
   pdclu  <- lploc[as.numeric(sub("X","",names(rma)))]
@@ -873,10 +873,10 @@ setMethod("projcells",
             if ( ! is.numeric(cthr) ) stop( "cthr has to be a non-negative number" ) else if ( cthr < 0 ) stop( "cthr has to be a non-negative number" )
             if ( ! length(object@sc@cpart == 0) ) stop( "please run findoutliers on the SCseq input object before initializing Ltree" )
             if ( !is.numeric(nmode) & !is.logical(nmode) ) stop("argument nmode has to be logical (TRUE/FALSE)")
-         
+
             object@par$cthr  <- cthr
             object@par$nmode <- nmode
-            
+
             lp <- object@sc@cpart
             ld <- object@sc@distances
             n  <- aggregate(rep(1,length(lp)),list(lp),sum)
@@ -896,7 +896,7 @@ setMethod("projcells",
 
             x <- compproj(pdi,lp,cn,m)
             res <- x$res
-           
+
             if ( nmode ){
               rma <- x$rma
               z <- paste("X",t(as.vector(apply(cbind(lp,ld),1,function(x){ f <- lp != x[1]; lp[f][which(x[-1][f] == min(x[-1][f]))[1]] }))),sep="")
@@ -928,17 +928,17 @@ setMethod("projback",
             if ( length(object@trproj) == 0 ) stop("run projcells before projback")
             object@par$pdishuf  <- pdishuf
             object@par$rseed    <- rseed
-            
+
             if ( ! nmode ){
               set.seed(rseed)
               for ( i in 1:pdishuf ){
                 cat("pdishuffle:",i,"\n")
                 x <- compproj(pdishuffle(object@ldata$pdi,object@ldata$lp,object@ldata$cn,object@ldata$m,all=TRUE),object@ldata$lp,object@ldata$cn,object@ldata$m,d=object@trproj$d)$res
                 y <- if ( i == 1 ) t(x) else cbind(y,t(x))
-              }    
+              }
               ##important
               object@prback <- as.data.frame(t(y))
-              
+
               x <- object@prback
               x$n <- as.vector(t(matrix(rep(1:(nrow(x)/nrow(object@ldata$pdi)),nrow(object@ldata$pdi)),ncol=nrow(object@ldata$pdi))))
               object@prbacka <- aggregate(data.frame(count=rep(1,nrow(x))),by=list(n=x$n,o=x$o,l=x$l),sum)
@@ -970,7 +970,7 @@ setMethod("lineagetree",
             res    <- object@trproj$res
             rma    <- object@trproj$rma
             prback <- object@prback
-            
+
             cm <- as.matrix(dist(cnl))*0
             linl <- list()
             linn <- list()
@@ -1006,7 +1006,7 @@ setMethod("lineagetree",
                 if ( !is.na(res$h[i]) ){
                   w <- t(pdil)[,i] - t(cnl)[,a]
                   v <- t(cnl)[,b] - t(cnl)[,a]
-                  
+
                   wo <- t(pdi)[,i] - t(cn)[,a]
                   vo <-  t(cn)[,b] - t(cn)[,a]
                   df <-( h*sqrt(sum(wo*wo)) )/sqrt(sum(vo*vo))*v
@@ -1016,7 +1016,7 @@ setMethod("lineagetree",
                   dfl <-  sign(h)*sqrt( sum( df*df ) )/sqrt(sum(v*v))
                   if ( a > b ) dfl <-  1 - dfl
                   linn[[paste(so[1],so[2],sep=".")]] <- append( linn[[paste(so[1],so[2],sep=".")]], rownames(pdi)[i] )
-                  linl[[paste(so[1],so[2],sep=".")]] <- append( linl[[paste(so[1],so[2],sep=".")]], dfl ) 
+                  linl[[paste(so[1],so[2],sep=".")]] <- append( linl[[paste(so[1],so[2],sep=".")]], dfl )
                 }else{
                   k <- t(cnl)[,a]
                   for ( j in unique(lp[lp != m[a]]) ){
@@ -1025,7 +1025,7 @@ setMethod("lineagetree",
                     dfl <- 0
                     if ( a > b ) dfl <-  1 - dfl
                     linn[[paste(so[1],so[2],sep=".")]] <- append( linn[[paste(so[1],so[2],sep=".")]], rownames(pdi)[i] )
-                    linl[[paste(so[1],so[2],sep=".")]] <- append( linl[[paste(so[1],so[2],sep=".")]], dfl ) 
+                    linl[[paste(so[1],so[2],sep=".")]] <- append( linl[[paste(so[1],so[2],sep=".")]], dfl )
                   }
                 }
               }
@@ -1155,7 +1155,7 @@ setMethod("plotmapprojections",
           signature = "Ltree",
           definition = function(object){
             if ( length(object@cdata) <= 0 ) stop("run comppvalue before plotmapprojections")
-         
+
             cent <- object@sc@fdata[,compmedoids(object@sc@fdata,object@sc@cpart)]
             dc <- as.data.frame(1 - cor(cent))
             names(dc) <- sort(unique(object@sc@cpart))
@@ -1183,14 +1183,14 @@ setMethod("plotmap",
           signature = "Ltree",
           definition = function(object){
             if ( length(object@cdata) <= 0 ) stop("run comppvalue before plotmap")
-         
+
             cent <- object@sc@fdata[,compmedoids(object@sc@fdata,object@sc@cpart)]
             dc <- as.data.frame(1 - cor(cent))
             names(dc) <- sort(unique(object@sc@cpart))
             rownames(dc) <- sort(unique(object@sc@cpart))
             trl <- spantree(dc[object@ldata$m,object@ldata$m])
 
-  
+
             u <- object@ldata$pdil[,1]
             v <- object@ldata$pdil[,2]
             cnl <- object@ldata$cnl
@@ -1214,8 +1214,8 @@ setMethod("plottree",
             if ( !is.numeric(nmode) & !is.logical(nmode) ) stop("argument nmode has to be logical (TRUE/FALSE)")
             if ( !is.numeric(showCells) & !is.logical(showCells) ) stop("argument showCells has to be logical (TRUE/FALSE)")
             if ( ! is.numeric(scthr) ) stop( "scthr has to be a non-negative number" ) else if ( scthr < 0 | scthr > 1 ) stop( "scthr has to be a number between 0 and 1" )
-           
-         
+
+
             ramp <- colorRamp(c("darkgreen", "yellow", "brown"))
             mcol <- rgb( ramp(seq(0, 1, length = 101)), max = 255)
             co <- object@cdata
@@ -1262,7 +1262,7 @@ setMethod("plottree",
             }else{
               plot(u,v,cex=0,xlab="Dim 1",ylab="Dim 2")
             }
-    
+
             if ( length(va) > 0 ){
               f <- order(va,decreasing=TRUE)
               for ( i in 1:length(va) ){
@@ -1281,7 +1281,7 @@ setMethod("plottree",
 
             en <- aggregate(object@entropy,list(object@sc@cpart),median)
             en <- en[en$Group.1 %in% m,]
-    
+
             mi <- min(en[,2],na.rm=TRUE)
             ma <- max(en[,2],na.rm=TRUE)
             w <- round((en[,2] - mi)/(ma - mi)*99 + 1,0)
@@ -1354,7 +1354,7 @@ setMethod("projenrichment",
           signature = "Ltree",
           definition = function(object){
             if ( length(object@cdata) <= 0 ) stop("run comppvalue before plotmap")
-            
+
             ze <- ( object@cdata$pv.e < object@par$pethr | object@cdata$pv.d < object@par$pethr) * (object@cdata$counts + .1)/( object@cdata$counts.br + .1 )
             pheatmap(log2(ze + ( ze == 0 ) ),cluster_rows=FALSE,cluster_cols=FALSE)
           }
@@ -1373,7 +1373,7 @@ setMethod("compscore",
             if ( ! is.numeric(nn) ) stop( "nn has to be a non-negative integer number" ) else if ( round(nn) != nn | nn < 0 ) stop( "nn has to be a non-negative integer number" )
             x <- object@cdata$counts*(object@cdata$pv.e < object@par$pethr)>0
             y <- x | t(x)
-            
+
             if ( max(y) > 0 ){
               z <- apply(y,1,sum)
               nl <- list()
@@ -1399,7 +1399,7 @@ setMethod("compscore",
                   }
                   names(n[[i]]) <- names(z)
                   nl <- cbind(nl,v)
-          
+
                 }
               }
               x <- nl[,i]
@@ -1408,13 +1408,13 @@ setMethod("compscore",
               x <- rep(0,length(object@ldata$m))
               names(x) <- paste("cl",object@ldata$m,sep=".")
             }
-            
+
             v <- aggregate(object@entropy,list(object@sc@cpart),median)
             v <- v[v$Group.1 %in% object@ldata$m,]
             w <- as.vector(v[,-1])
             names(w) <- paste("cl.",v$Group.1,sep="")
             w <- w - min(w)
-            
+
             return(list(links=x,entropy=w,StemIDscore=x*w))
           }
           )
@@ -1449,13 +1449,13 @@ setMethod("branchcells",
             msg <- paste("br needs to be list of length two containing two branches, where each has to be one of", paste(names(object@prtree$n),collapse=","))
             if ( !is.list(br) ) stop(msg) else if ( length(br) != 2 ) stop(msg) else if ( ! br[[1]] %in% names(object@prtree$n) | ! br[[2]] %in% names(object@prtree$n) ) stop(msg)
 
-             
+
             n <- list()
             scl <- object@sc
             k <- c()
             cl <- intersect( as.numeric(strsplit(br[[1]],"\\.")[[1]]), as.numeric(strsplit(br[[2]],"\\.")[[1]]))
             if ( length(cl) == 0 ) stop("the two branches in br need to have one cluster in common.")
-                      
+
             for ( i in 1:length(br) ){
               f <- object@sc@cpart[ object@prtree$n[[br[[i]]]] ] %in% cl
               if ( sum(f) > 0 ){
@@ -1472,6 +1472,5 @@ setMethod("branchcells",
             return( list(n=n,scl=scl,k=k,diffgenes=z) )
           }
           )
-
 
 
