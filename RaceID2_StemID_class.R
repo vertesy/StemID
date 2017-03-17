@@ -766,9 +766,6 @@ setMethod("clustheatmap",
 
 
 
-
-
-
 ## class definition
 Ltree <- setClass("Ltree", slots = c(sc = "SCseq", ldata = "list", entropy = "vector", trproj = "list", par = "list", prback = "data.frame", prbacka = "data.frame", ltcoord = "matrix", prtree = "list", sigcell = "vector", cdata = "list"  ))
 
@@ -1511,3 +1508,116 @@ setMethod("plottsne",
             }
           }
 )
+
+
+
+diffexpnb <- function(x, cells_of_interest, cells_background ,norm=TRUE,DESeq=FALSE,method="per-condition",vfit=NULL,locreg=FALSE){
+  if ( ! method %in% c("per-condition","pooled","pooled-CR") ) stop("invalid method")
+  x <- x[,c(cells_background,cells_of_interest)]
+  if ( DESeq ){
+    des <- data.frame( "row.names" = colnames(x),
+                       "condition" = c( rep(1,length(cells_background)), rep(2,length(cells_of_interest)) ),
+                       "libType" = rep("single-end", dim(x)[2]))
+    cds <- newCountDataSet( round(x,0), des$condition )
+    cds <- estimateSizeFactors( cds )
+    cds <- estimateDispersions( cds, method=method, fitType="local" )
+    res <- nbinomTest( cds, 1, 2 )
+    rownames(res) <- res$id
+    res <- res[,-1]
+    list("des"=des, "cds"=cds, "res"=res)
+  }else{
+    if (norm) x <- as.data.frame( t(t(x)/apply(x,2,sum)) * median(apply(x,2,sum,na.rm=TRUE)) )
+    fit = Meanz = Medianz = GeoMeanz = v = list()
+    for ( i in 1:2 ){
+      group <- if ( i == 1 ) cells_background else cells_of_interest
+      Meanz[[i]]	<- signif(if ( length(group) > 1 ) apply(x[,group],1,mean) else x[,group], digits = 3)
+      Medianz[[i]]	<- if ( length(group) > 1 ) apply(x[,group],1,median) else x[,group]
+      GeoMeanz[[i]]	<- if ( length(group) > 1 ) apply(x[,group],1,gm_mean) else x[,group]
+        if (!exists("gm_mean")) { print("gm_mean() function in missing!!! Load it from CodeAndRoll (GitHub)")      }
+      v[[i]] <- if ( length(group) > 1 ) apply(x[,group],1,var)  else apply(x,1,var)
+
+      if ( method == "pooled"){
+        mg <- apply(x,1,mean)
+        vg <- apply(x,1,var)
+        f <- vg > 0 & mg > .5
+        logv <- log2(vg[f])
+        logm <- log2(mg[f])
+      }else{
+        f <- v[[i]] > 0 & Meanz[[i]] > .5
+        logv <- log2(v[[i]][f])
+        logm <- log2(Meanz[[i]][f])
+      }
+
+      if ( locreg ){
+        f <- order(logm,decreasing=FALSE)
+        u <- 2**logm[f]
+        y <- 2**logv[f]
+        lf <- locfit(y~lp(u,nn=.7), family="gamma", maxk=500)
+        fit[[i]] <- approxfun(u, fitted(lf), method = "const")
+      }else{
+        fit[[i]] <- if ( is.null(vfit) ) lm(logv ~ logm + I(logm^2)) else vfit
+      }
+    }
+
+    if ( locreg ){
+      vf  <- function(x,i) fit[[i]](x)
+    }else{
+      vf  <- function(x,i) 2**(coef(fit[[i]])[1] + log2(x)*coef(fit[[i]])[2] + coef(fit[[i]])[3] * log2(x)**2)
+    }
+    sf  <- function(x,i) x**2/(max(x + 1e-6,vf(x,i)) - x)
+
+    pv <- apply("X" = data.frame(Meanz[[1]],Meanz[[2]]), "MARGIN" = 1, "FUN" = function(x){
+      p12 <- dnbinom(	"x" = 0:round(x[1]*length(cells_background) + x[2]*length(cells_of_interest),0),
+                      "mu" = mean(x)*length(cells_background),size=length(cells_background)*sf(mean(x),1))*
+        dnbinom(	"x" = round(x[1]*length(cells_background) + x[2]*length(cells_of_interest),0):0,
+                 "mu" = mean(x)*length(cells_of_interest),size=length(cells_of_interest)*sf(mean(x),2));
+
+      sum(p12[p12 <= p12[round(x[1]*length(cells_background),0) + 1]])/sum(p12)} )
+
+    print(pv)
+
+    foldChange = Meanz[[2]]/Meanz[[1]]
+    res <- data.frame(	"baseMean" =		signif((Meanz[[1]] + Meanz[[2]])/2, digits = 2),
+                       "baseMeanA" =		Meanz[[1]],
+                       "baseMeanB" = 		Meanz[[2]],
+                       "foldChange" = 		round(foldChange, digits = 2),
+                       "log2FoldChange" = 	round(log2(foldChange), digits = 2),
+                       "MedianA"=			Medianz[[1]],
+                       "MedianB"=			Medianz[[2]],
+                       "foldChange_Median"=signif(Medianz[[2]]/Medianz[[1]], digits = 1),
+                       "GeoMeanA"=			GeoMeanz[[1]],
+                       "GeoMeanB"=			GeoMeanz[[2]],
+                       "foldChange_GeoMean"=signif(GeoMeanz[[2]]/GeoMeanz[[1]], digits = 1),
+                       "pval" = 			signif(pv, digits = 2),
+                       "padj" = 			signif(p.adjust(pv,method="BH"), digits = 1))
+    vf1 <- data.frame("m" = Meanz[[1]], "v" = v[[1]], "vm" = vf(Meanz[[1]],1))
+    vf2 <- data.frame("m" = Meanz[[2]],"v" = v[[2]], "vm" = vf(Meanz[[2]],2))
+    rownames(res) <- rownames(vf1) <- rownames(vf2) <- rownames(x)
+    list("vf1"=vf1, "vf2"=vf2, "res"=res)
+  }
+}
+
+
+setGeneric("clustdiffgenesnb", function(object,pvalue=.01) standardGeneric("clustdiffgenesnb"))
+
+setMethod("clustdiffgenesnb",
+          signature = "SCseq",
+          definition = function(object,pvalue){
+            if ( length(object@cpart) == 0 ) stop("run findoutliers before clustdiffgenesnb")
+            if ( ! is.numeric(pvalue) ) stop("pvalue has to be a number between 0 and 1") else if (  pvalue < 0 | pvalue > 1 ) stop("pvalue has to be a number between 0 and 1")
+            cdiff <- list()
+            x     <- object@ndata
+            part  <- object@cpart
+            for ( i in 1:max(part) ){
+              if ( sum(part == i) == 0 ) next
+              g1 <- names(part)[part == i]
+              g2 <- names(part)[part != i]
+              y <- diffexpnb(x,g1,g2,vfit=sc@background$vfit)$res
+              d <- data.frame(mean.ncl=y$baseMeanB,mean.cl=y$baseMeanA,fc=1/y$foldChange,pv=y$padj)
+              rownames(d) <- rownames(x)
+              d <- d[order(d$pv,decreasing=FALSE),]
+              cdiff[[paste("cl",i,sep=".")]] <- d[d$pv < pvalue,]
+            }
+            return(cdiff)
+          }
+          )
