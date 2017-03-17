@@ -413,7 +413,8 @@ plot.err.bars.y <- function(x, y, y.err, col="black", lwd=1, lty=1, h=0.1){
 
 clusGapExt <-function (x, FUNcluster, K.max, B = 100, verbose = interactive(), method="euclidean",random=TRUE, ParAbelClust =F, ParAbelBoot = T, ...) {
      stopifnot(is.function(FUNcluster), length(dim(x)) == 2, K.max >= 2, (n <- nrow(x)) >= 1, (p <- ncol(x)) >= 1)
-	print("To use parallel functions, you should setup parallel backend to use e.g. processors: library(doParallel); registerDoParallel(makeCluster(7)) ")
+	print("To use parallel functions, you should setup parallel backend to use e.g. processors: library(doParallel); registerDoParallel(makeCluster(4))")
+	print("THIS WILL BE MEMORY HEAVY - CLOSE ALL UNNECESSARY APPLICATIONS")
 	print("You should also specify the variable RaceIDpath to your RaceID-class file.")
 
     if (B != (B. <- as.integer(B)) || (B <- B.) <= 0) {stop("'B' has to be a positive integer")}
