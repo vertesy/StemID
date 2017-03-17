@@ -1474,3 +1474,19 @@ setMethod("branchcells",
           )
 
 
+
+## Additions
+
+setGeneric("plotlabelstsne", function(object,labels=NULL) standardGeneric("plotlabelstsne")) # Plot cell labels on the tSNE plot
+
+setMethod("plotlabelstsne",
+          signature = "SCseq",
+          definition = function(object,labels){
+            if ( is.null(labels ) ) labels <- names(object@ndata)
+            if ( length(object@tsne) == 0 ) stop("run comptsne before plotlabelstsne")
+            plot(object@tsne,xlab="Dim 1",ylab="Dim 2",pch=20,cex=1.5,col="lightgrey")
+            text(object@tsne[,1],object@tsne[,2],labels,cex=.5)
+          }
+)
+
+
