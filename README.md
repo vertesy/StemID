@@ -1,5 +1,13 @@
 # StemID and RaceID2 algorithms
 
+## New Functions
+
+#### Reorder cluster labels in any tSNE dimenisons by  `fix_kpart() `
+
+#### Differential gene expression analysis	`diffexpnb()`
+
+#### Abels (based on Lennart's version) version of plottsne - better graphics and you can change the colors See: `plottsne()` the original is `plottsne.original()`
+
 RaceID2 is an advanced version of RaceID, an algorithm for the identification of rare and abundant cell types from single cell transcriptome data. The method is based on transcript counts obtained with unique molecular identifies.
 
 StemID is an algorithm for the derivation of cell lineage trees based on RaceID2 results and predicts multipotent cell identites.
@@ -115,4 +123,6 @@ StemID/RaceID2 class definition: RaceID2_StemID_class.R
 StemID/RaceID2 sample code: RaceID2_StemID_sample.R
 StemID/RaceID2 reference manual: Reference_manual_RaceID2_StemID.pdf
 StemID/RaceID2 sample data: transcript_counts_intestine_5days_YFP.xls
+
+
 

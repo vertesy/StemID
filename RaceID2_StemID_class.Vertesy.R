@@ -1575,7 +1575,7 @@ setMethod("plotlabelstsne",
 )
 
 
-#Abels version of plottsne - better graphics and you can change the colors
+# Abels version of plottsne - better graphics and you can change the colors
 setGeneric("plottsne", function(object,final=F, coll=object@fcol) standardGeneric("plottsne"))
 
 setMethod("plottsne",
@@ -1714,8 +1714,9 @@ setMethod("clustdiffgenesnb",
 # Reorder cluster labels in any tSNE dimenisons
 fix_kpart <- function (sc_obj=sc, bytSNEdim=1, outlier=F){ # old_kpart if using outler detection ; bytSNEdim which tSNE dimension should the clusters be reordered
   DimOrder_tSNE = unlapply(split(as.named.vector(sc_obj@tsne[,bytSNEdim, drop=F]), f = kpart), mean)
-  old_kpart = if (outlier) sc@cpart else sc_obj@cluster$kpart
+  old_kpart = if (outlier) sc_obj@cpart else sc_obj@cluster$kpart
   New_kpart = translate(old_kpart, oldvalues = names(sort(DimOrder_tSNE)), newvalues = names(DimOrder_tSNE))
-  if (outlier) { assign("sc@cpart", New_kpart, envir = .GlobalEnv)
-  } else {       assign("sc@cluster$kpart", New_kpart, envir = .GlobalEnv) }
+  return(New_kpart)
+  # if (outlier) { assign("sc@cpart", New_kpart, envir = .GlobalEnv)
+  # } else {       assign("sc@cluster$kpart", New_kpart, envir = .GlobalEnv) }
 }
