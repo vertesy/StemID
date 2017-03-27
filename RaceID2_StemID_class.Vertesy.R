@@ -1721,11 +1721,44 @@ fix_kpart <- function (sc_obj=sc, bytSNEdim=1, outlier=F){ # old_kpart if using 
   # } else {       assign("sc@cluster$kpart", New_kpart, envir = .GlobalEnv) }
 }
 
-
 plot.2.file <- function(name, type="pdf", res.f=1){
   full.name <- paste(name,type,sep=".")
   if (type == "pdf"){ 		 pdf(full.name)
   }else if(type == "png"){	 png(full.name,width = 480*res.f, height = 480*res.f, pointsize = 12*res.f)
   }else if (type == "tiff"){ tiff(full.name,width = 480*res.f, height = 480*res.f, pointsize = 12*res.f)
   }else if (type == "jpeg"){ jpeg(full.name,width = 480*res.f, height = 480*res.f, pointsize = 12*res.f) }
+}
+
+plot_filtering_RaceID <- function(sc, minexpr=p$minexpr, minnumber = p$minnumber) {
+  GeneExpression = log10(rowSums(sc@expdata)+1)
+  GeneOccurences = rowSums(sc@expdata>0)
+  GeneOccurence_above_MinEx = rowSums(sc@expdata > minexpr)
+  index = GeneOccurence_above_MinEx >= minnumber
+  
+  coll = (index)+2
+  sub = kollapse(pc_TRUE(index)," or ", sum(index), " genes have ", minexpr, "+ reads in ", minnumber, "+ cells.")
+  plot(jitter(GeneOccurences, amount = .5) ~ GeneExpression , pch=".", main ="GeneFiltering", col = coll, sub = sub, xlab = "log10(Transcript Count+1)", ylab = "Expressed in so many cells" )
+}
+
+multitSNE <- function (sc_obj=sc, genes=rownames(sc@ndata)[1:5], cols_ = 2, rows_ = 3, log_10_ =F, pname_="tSNE.multiple.genes", cex_=.5) {
+  pdfA4plot_on(pname = pname_, cols = cols_, rows = rows_)
+  for(i in 1:length(genes)){
+    tsne.multiplex(sc_ = sc_obj, g = genes[i], title = genes[i], log_10 = log_10_ )
+  }
+  pdfA4plot_off()
+} # multitSNE(log_10_ = T, pname_ = "aaa")
+
+# inside function of multitSNE()
+tsne.multiplex <- function(sc_=sc, g="Hsp90aa1__chr12", legendPos="topleft", title=g, pchx =T, log_10 =F, cex_=.5){
+  exp = as.numeric(sc_@ndata[g,])
+  rng = iround(range(exp))
+  if(log_10) {exp = log10(exp)}
+  ccc=val2col(exp, col = rev(terrain.colors(max(12, 3 * l(unique(exp))))) )
+  ColorRamp <- rev(terrain.colors(100))
+  if(isTRUE(clPch)) {clID = sc@cluster$kpart; clID[clID>5] = (clID[clID>5])-5
+  pchx=(20+clID)  }
+  plot(sc@tsne, pch=pchx, bg=ccc, col="grey33", main=title)
+  
+  lll = ccc[c(which.min(exp), which.max(exp))]; names(lll) = rng # legend labels 
+  wlegend2(x = legendPos,fill = lll, OverwritePrevPDF = F, title="Transcripts", cex=cex_)
 }
