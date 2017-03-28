@@ -1685,6 +1685,23 @@ diffexpnb <- function(x, cells_of_interest, cells_background ,norm=TRUE,DESeq=FA
   }
 }
 
+plotdiffgenesnb <- function(x,pthr=.05,padj=TRUE,lthr=0,mthr=-Inf,Aname=NULL,Bname=NULL,show_names=TRUE){
+  y <- as.data.frame(x$res)
+  if ( is.null(Aname) ) Aname <- "baseMeanA"
+  if ( is.null(Bname) ) Bname <- "baseMeanB"
+  
+  plot(log2(y$baseMean),y$log2FoldChange,pch=20,xlab=paste("log2 ( ( #mRNA[",Aname,"] + #mRNA[",Bname,"] )/2 )",sep=""),ylab=paste("log2 #mRNA[",Bname,"] - log2 #mRNA[",Aname,"]",sep=""),col="grey")
+  abline(0,0)
+  if ( ! is.null(pthr) ){
+    if ( padj ) f <- y$padj < pthr else f <- y$pval < pthr
+    points(log2(y$baseMean)[f],y$log2FoldChange[f],col="red",pch=20)
+  }
+  if ( !is.null(lthr) ) f <- f & abs( y$log2FoldChange ) > lthr
+  if ( !is.null(mthr) ) f <- f & log2(y$baseMean) > mthr
+  if ( show_names ){
+    if ( sum(f) > 0 ) text(log2(y$baseMean)[f],y$log2FoldChange[f],rownames(y)[f],cex=.5)
+  }
+}
 
 setGeneric("clustdiffgenesnb", function(object,pvalue=.01) standardGeneric("clustdiffgenesnb"))
 
