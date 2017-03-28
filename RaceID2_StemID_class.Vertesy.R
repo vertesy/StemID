@@ -1620,10 +1620,10 @@ diffexpnb <- function(x, cells_of_interest, cells_background ,norm=TRUE,DESeq=FA
       group <- if ( i == 1 ) cells_background else cells_of_interest
       Meanz[[i]]	<- signif(if ( length(group) > 1 ) apply(x[,group],1,mean) else x[,group], digits = 3)
       Medianz[[i]]	<- if ( length(group) > 1 ) apply(x[,group],1,median) else x[,group]
-      GeoMeanz[[i]]	<- if ( length(group) > 1 ) apply(x[,group],1,gm_mean) else x[,group]
-        if (!exists("gm_mean")) { print("gm_mean() function in missing!!! Load it from CodeAndRoll (GitHub)")      }
+      if (!exists("geomean")) { print("geomean() function in missing!!! Load it from CodeAndRoll (GitHub)")      }
+      GeoMeanz[[i]]	<- if ( length(group) > 1 ) apply(x[,group],1,geomean) else x[,group]
       v[[i]] <- if ( length(group) > 1 ) apply(x[,group],1,var)  else apply(x,1,var)
-
+      
       if ( method == "pooled"){
         mg <- apply(x,1,mean)
         vg <- apply(x,1,var)
@@ -1635,7 +1635,7 @@ diffexpnb <- function(x, cells_of_interest, cells_background ,norm=TRUE,DESeq=FA
         logv <- log2(v[[i]][f])
         logm <- log2(Meanz[[i]][f])
       }
-
+      
       if ( locreg ){
         f <- order(logm,decreasing=FALSE)
         u <- 2**logm[f]
@@ -1646,24 +1646,24 @@ diffexpnb <- function(x, cells_of_interest, cells_background ,norm=TRUE,DESeq=FA
         fit[[i]] <- if ( is.null(vfit) ) lm(logv ~ logm + I(logm^2)) else vfit
       }
     }
-
+    
     if ( locreg ){
       vf  <- function(x,i) fit[[i]](x)
     }else{
       vf  <- function(x,i) 2**(coef(fit[[i]])[1] + log2(x)*coef(fit[[i]])[2] + coef(fit[[i]])[3] * log2(x)**2)
     }
     sf  <- function(x,i) x**2/(max(x + 1e-6,vf(x,i)) - x)
-
+    
     pv <- apply("X" = data.frame(Meanz[[1]],Meanz[[2]]), "MARGIN" = 1, "FUN" = function(x){
       p12 <- dnbinom(	"x" = 0:round(x[1]*length(cells_background) + x[2]*length(cells_of_interest),0),
                       "mu" = mean(x)*length(cells_background),size=length(cells_background)*sf(mean(x),1))*
         dnbinom(	"x" = round(x[1]*length(cells_background) + x[2]*length(cells_of_interest),0):0,
                  "mu" = mean(x)*length(cells_of_interest),size=length(cells_of_interest)*sf(mean(x),2));
-
+      
       sum(p12[p12 <= p12[round(x[1]*length(cells_background),0) + 1]])/sum(p12)} )
-
+    
     print(pv)
-
+    
     foldChange = Meanz[[2]]/Meanz[[1]]
     res <- data.frame(	"baseMean" =		signif((Meanz[[1]] + Meanz[[2]])/2, digits = 2),
                        "baseMeanA" =		Meanz[[1]],
@@ -1678,12 +1678,14 @@ diffexpnb <- function(x, cells_of_interest, cells_background ,norm=TRUE,DESeq=FA
                        "foldChange_GeoMean"=signif(GeoMeanz[[2]]/GeoMeanz[[1]], digits = 1),
                        "pval" = 			signif(pv, digits = 2),
                        "padj" = 			signif(p.adjust(pv,method="BH"), digits = 1))
+    
     vf1 <- data.frame("m" = Meanz[[1]], "v" = v[[1]], "vm" = vf(Meanz[[1]],1))
     vf2 <- data.frame("m" = Meanz[[2]],"v" = v[[2]], "vm" = vf(Meanz[[2]],2))
     rownames(res) <- rownames(vf1) <- rownames(vf2) <- rownames(x)
     list("vf1"=vf1, "vf2"=vf2, "res"=res)
   }
 }
+
 
 plotdiffgenesnb <- function(x,pthr=.05,padj=TRUE,lthr=0,mthr=-Inf,Aname=NULL,Bname=NULL,show_names=TRUE){
   y <- as.data.frame(x$res)
