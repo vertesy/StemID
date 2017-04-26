@@ -436,7 +436,7 @@ clusGapExt <-function (x, FUNcluster, K.max, B = 100, verbose = interactive(), m
     if(ParAbelClust) {	print("Abel Style - parallel Clustering")
 		logW <- as.numeric(foreach(k = 1:K.max) %dopar% {
 			# source(RaceIDpath)
-			source("/Users/abelvertesy/Github_repos/RaceID2.parallel.computing/RaceID2_StemID_class.Vertesy.R")
+			source("~/Github_repos/RaceID2.parallel.computing/RaceID2_StemID_class.Vertesy.R")
 			log(W.k(x, k))
 		})
     } else {	print("classical")
@@ -455,7 +455,7 @@ clusGapExt <-function (x, FUNcluster, K.max, B = 100, verbose = interactive(), m
        		if(ParAbelBoot) { print("Abel Style - parallel Bootstrapping")
 				z.ls <- foreach(icount(B)) %dopar% {
 					# source(RaceIDpath)
-					source("/Users/abelvertesy/Github_repos/RaceID2.parallel.computing/RaceID2_StemID_class.Vertesy.R")
+					source("~/Github_repos/RaceID2.parallel.computing/RaceID2_StemID_class.Vertesy.R")
 					tcrossprod(apply(rng.x1, 2, function(M, nn) runif(nn, min = M[1], max = M[2]), nn = n), V.sx) + m.x
 				}
 				print(Sys.time()- start.time)
@@ -1623,7 +1623,7 @@ diffexpnb <- function(x, cells_of_interest, cells_background ,norm=TRUE,DESeq=FA
       if (!exists("geomean")) { print("geomean() function in missing!!! Load it from CodeAndRoll (GitHub)")      }
       GeoMeanz[[i]]	<- if ( length(group) > 1 ) apply(x[,group],1,geomean) else x[,group]
       v[[i]] <- if ( length(group) > 1 ) apply(x[,group],1,var)  else apply(x,1,var)
-      
+
       if ( method == "pooled"){
         mg <- apply(x,1,mean)
         vg <- apply(x,1,var)
@@ -1635,7 +1635,7 @@ diffexpnb <- function(x, cells_of_interest, cells_background ,norm=TRUE,DESeq=FA
         logv <- log2(v[[i]][f])
         logm <- log2(Meanz[[i]][f])
       }
-      
+
       if ( locreg ){
         f <- order(logm,decreasing=FALSE)
         u <- 2**logm[f]
@@ -1646,24 +1646,24 @@ diffexpnb <- function(x, cells_of_interest, cells_background ,norm=TRUE,DESeq=FA
         fit[[i]] <- if ( is.null(vfit) ) lm(logv ~ logm + I(logm^2)) else vfit
       }
     }
-    
+
     if ( locreg ){
       vf  <- function(x,i) fit[[i]](x)
     }else{
       vf  <- function(x,i) 2**(coef(fit[[i]])[1] + log2(x)*coef(fit[[i]])[2] + coef(fit[[i]])[3] * log2(x)**2)
     }
     sf  <- function(x,i) x**2/(max(x + 1e-6,vf(x,i)) - x)
-    
+
     pv <- apply("X" = data.frame(Meanz[[1]],Meanz[[2]]), "MARGIN" = 1, "FUN" = function(x){
       p12 <- dnbinom(	"x" = 0:round(x[1]*length(cells_background) + x[2]*length(cells_of_interest),0),
                       "mu" = mean(x)*length(cells_background),size=length(cells_background)*sf(mean(x),1))*
         dnbinom(	"x" = round(x[1]*length(cells_background) + x[2]*length(cells_of_interest),0):0,
                  "mu" = mean(x)*length(cells_of_interest),size=length(cells_of_interest)*sf(mean(x),2));
-      
+
       sum(p12[p12 <= p12[round(x[1]*length(cells_background),0) + 1]])/sum(p12)} )
-    
+
     print(pv)
-    
+
     foldChange = Meanz[[2]]/Meanz[[1]]
     res <- data.frame(	"baseMean" =		signif((Meanz[[1]] + Meanz[[2]])/2, digits = 2),
                        "baseMeanA" =		Meanz[[1]],
@@ -1678,7 +1678,7 @@ diffexpnb <- function(x, cells_of_interest, cells_background ,norm=TRUE,DESeq=FA
                        "foldChange_GeoMean"=signif(GeoMeanz[[2]]/GeoMeanz[[1]], digits = 1),
                        "pval" = 			signif(pv, digits = 2),
                        "padj" = 			signif(p.adjust(pv,method="BH"), digits = 1))
-    
+
     vf1 <- data.frame("m" = Meanz[[1]], "v" = v[[1]], "vm" = vf(Meanz[[1]],1))
     vf2 <- data.frame("m" = Meanz[[2]],"v" = v[[2]], "vm" = vf(Meanz[[2]],2))
     rownames(res) <- rownames(vf1) <- rownames(vf2) <- rownames(x)
@@ -1691,7 +1691,7 @@ plotdiffgenesnb <- function(x,pthr=.05,padj=TRUE,lthr=0,mthr=-Inf,Aname=NULL,Bna
   y <- as.data.frame(x$res)
   if ( is.null(Aname) ) Aname <- "baseMeanA"
   if ( is.null(Bname) ) Bname <- "baseMeanB"
-  
+
   plot(log2(y$baseMean),y$log2FoldChange,pch=20,xlab=paste("log2 ( ( #mRNA[",Aname,"] + #mRNA[",Bname,"] )/2 )",sep=""),ylab=paste("log2 #mRNA[",Bname,"] - log2 #mRNA[",Aname,"]",sep=""),col="grey")
   abline(0,0)
   if ( ! is.null(pthr) ){
@@ -1753,7 +1753,7 @@ plot_filtering_RaceID <- function(sc, minexpr=p$minexpr, minnumber = p$minnumber
   GeneOccurences = rowSums(sc@expdata>0)
   GeneOccurence_above_MinEx = rowSums(sc@expdata > minexpr)
   index = GeneOccurence_above_MinEx >= minnumber
-  
+
   coll = (index)+2
   sub = kollapse(pc_TRUE(index)," or ", sum(index), " genes have ", minexpr, "+ reads in ", minnumber, "+ cells.")
   plot(jitter(GeneOccurences, amount = .5) ~ GeneExpression , pch=".", main ="GeneFiltering", col = coll, sub = sub, xlab = "log10(Transcript Count+1)", ylab = "Expressed in so many cells" )
@@ -1777,7 +1777,7 @@ tsne.multiplex <- function(sc_=sc, g="Hsp90aa1__chr12", legendPos="topleft", tit
   if(isTRUE(clPch)) {clID = sc@cluster$kpart; clID[clID>5] = (clID[clID>5])-5
   pchx=(20+clID)  }
   plot(sc@tsne, pch=pchx, bg=ccc, col="grey33", main=title)
-  
-  lll = ccc[c(which.min(exp), which.max(exp))]; names(lll) = rng # legend labels 
+
+  lll = ccc[c(which.min(exp), which.max(exp))]; names(lll) = rng # legend labels
   wlegend2(x = legendPos,fill = lll, OverwritePrevPDF = F, title="Transcripts", cex=cex_)
 }
