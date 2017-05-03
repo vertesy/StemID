@@ -436,7 +436,7 @@ clusGapExt <-function (x, FUNcluster, K.max, B = 100, verbose = interactive(), m
     if(ParAbelClust) {	print("Abel Style - parallel Clustering")
 		logW <- as.numeric(foreach(k = 1:K.max) %dopar% {
 			# source(RaceIDpath)
-			source("~/Github_repos/RaceID2.parallel.computing/RaceID2_StemID_class.Vertesy.R")
+			source("~/Github_repos/RaceID2.parallel.computing/RaceID2.5_StemID_class.Vertesy.R")
 			log(W.k(x, k))
 		})
     } else {	print("classical")
@@ -455,7 +455,7 @@ clusGapExt <-function (x, FUNcluster, K.max, B = 100, verbose = interactive(), m
        		if(ParAbelBoot) { print("Abel Style - parallel Bootstrapping")
 				z.ls <- foreach(icount(B)) %dopar% {
 					# source(RaceIDpath)
-					source("~/Github_repos/RaceID2.parallel.computing/RaceID2_StemID_class.Vertesy.R")
+					source("~/Github_repos/RaceID2.parallel.computing/RaceID2.5_StemID_class.Vertesy.R")
 					tcrossprod(apply(rng.x1, 2, function(M, nn) runif(nn, min = M[1], max = M[2]), nn = n), V.sx) + m.x
 				}
 				print(Sys.time()- start.time)
