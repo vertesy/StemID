@@ -50,7 +50,7 @@ setGeneric("filterdata", function(object, mintotal=1000, minexpr=5, minnumber=1,
 
 setMethod("filterdata",
           signature = "SCseq",
-          definition = function(object,mintotal,minexpr,minnumber,maxexpr,downsample,dsn,rseed) {
+          definition = function(object,mintotal,minexpr,minnumber,maxexpr,downsample,dsn,rseed, dsversion) {
             if ( ! is.numeric(mintotal) ) stop( "mintotal has to be a positive number" ) else if ( mintotal <= 0 ) stop( "mintotal has to be a positive number" )
             if ( ! is.numeric(minexpr) ) stop( "minexpr has to be a non-negative number" ) else if ( minexpr < 0 ) stop( "minexpr has to be a non-negative number" )
             if ( ! is.numeric(minnumber) ) stop( "minnumber has to be a non-negative integer number" ) else if ( round(minnumber) != minnumber | minnumber < 0 ) stop( "minnumber has to be a non-negative integer number" )
@@ -60,7 +60,7 @@ setMethod("filterdata",
             object@ndata <- object@expdata[,apply(object@expdata,2,sum,na.rm=TRUE) >= mintotal]
             if ( downsample ){
               set.seed(rseed)
-              object@ndata <- downsample(object@expdata,n=mintotal,dsn=dsn)
+              object@ndata <- downsample(object@expdata,n=mintotal,dsn=dsn, dsversion = dsversion)
             }else{
               x <- object@ndata
               object@ndata <- as.data.frame( t(t(x)/apply(x,2,sum))*median(apply(x,2,sum,na.rm=TRUE)) + .1 )

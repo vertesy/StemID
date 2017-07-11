@@ -19,7 +19,6 @@ rownames(x) <- x$GENEID
 prdata <- x[grep("ERCC",rownames(x),invert=TRUE),-1]
 
 
-
 ## RaceID2
 # initialize SCseq object with transcript counts
 sc <- SCseq(prdata)
