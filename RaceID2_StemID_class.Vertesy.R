@@ -73,7 +73,7 @@ setMethod("filterdata",
           }
           )
 
-downsample <- function(x, n, dsn, dsversion){
+downsample <- function(x, n, dsn, dsversion= "DG"){
     if (dsversion == "DG") {  # Dominic's downsampler
         x <- round(x,0)
         x <- x[apply(x,2,sum,na.rm=TRUE) >= n]
@@ -91,7 +91,6 @@ downsample <- function(x, n, dsn, dsversion){
             }
             ds <- if ( j == 1 ) z[,-1] else ds + z[,-1]
         }
-        ds <- ds/dsn + .1
 
     } else if (dsversion == "JCB") {  # Jean-Charles' downsampler
         rnd <- round(x, 0)
@@ -107,8 +106,8 @@ downsample <- function(x, n, dsn, dsversion){
                 ds[match(names(poollists[[i]]),rownames(rnd)),i] <- as.numeric(poollists[[i]]) + ds[match(names(poollists[[i]]),rownames(rnd)),i]
             }
         }
-        ds <- ds/dsn + .1
     }
+    ds <- ds/dsn + .1
     return(ds)
 }
 
