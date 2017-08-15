@@ -1778,5 +1778,5 @@ tsne.multiplex <- function(sc_=sc, g="Hsp90aa1__chr12", legendPos="topleft", tit
   plot(sc@tsne, pch=pchx, bg=ccc, col="grey33", main=title)
 
   lll = ccc[c(which.min(exp), which.max(exp))]; names(lll) = rng # legend labels
-  wlegend2(x = legendPos,fill = lll, OverwritePrevPDF = F, title="Transcripts", cex=cex_)
+  wlegend(poz = legendPos, fill_ = lll, OverwritePrevPDF = F, title="Transcripts", cex=cex_)
 }
